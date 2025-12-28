@@ -244,7 +244,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
         # Initialize preset selection if missing
         if preset_key not in st.session_state:
-            st.session_state[preset_key] = "Baseline (historical)"
+            st.session_state[preset_key] = "Baseline (purely based on historical data)"
 
         def on_preset_change():
             chosen = st.session_state[preset_key]
@@ -264,7 +264,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
         # First-time initialization of widget values
         if f"{key_prefix}_total_unique" not in st.session_state:
-            init_defaults = preset_dict[preset_name] if locked else preset_dict["Baseline (historical)"]
+            init_defaults = preset_dict[preset_name] if locked else preset_dict["Baseline (purely based on historical data)"]
             _apply_defaults_to_session(key_prefix, init_defaults)
 
         colA, colB = st.columns(2)
