@@ -241,16 +241,17 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
         preset_options = ["Custom"] + list(preset_dict.keys())
         preset_key = f"{key_prefix}_preset"
+        default_preset = next(iter(preset_dict))  # first key in PRESETS (your baseline)
 
-        # Initialize preset selection if missing
-        if preset_key not in st.session_state:
-            st.session_state[preset_key] = "Baseline (purely based on historical data)"
+        # Initialize OR repair stale session state (after renaming presets)
+        if (preset_key not in st.session_state) or (st.session_state[preset_key] not in preset_options):
+            st.session_state[preset_key] = default_preset
 
         def on_preset_change():
             chosen = st.session_state[preset_key]
-            if chosen != "Custom":
+            if chosen in preset_dict:  # safe guard
                 _apply_defaults_to_session(key_prefix, preset_dict[chosen])
-            # If Custom: do not overwrite the current values.
+            # If Custom (or invalid), do nothing.
 
         st.selectbox(
             "Scenario preset",
@@ -264,8 +265,8 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
         # First-time initialization of widget values
         if f"{key_prefix}_total_unique" not in st.session_state:
-            init_defaults = preset_dict[preset_name] if locked else preset_dict["Baseline (purely based on historical data)"]
-            _apply_defaults_to_session(key_prefix, init_defaults)
+            init_name = preset_name if preset_name in preset_dict else default_preset
+            _apply_defaults_to_session(key_prefix, preset_dict[init_name])
 
         colA, colB = st.columns(2)
         with colA:
