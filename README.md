@@ -95,7 +95,7 @@ For `years` independent attempts:
 ## App Features
 
 - **Preset sync:** switching presets updates input widgets immediately.
-- **Preset locking:** preset scenarios are fixed; choose **Custom** to edit inputs.
+- **Preset locking:** preset scenarios are fixed; choose Custom option to edit inputs.
 - **Compare mode:** side-by-side comparison of two scenarios (A vs B), including deltas.
 - **CSV export:** download per-scenario results and comparison tables.
 
