@@ -421,7 +421,7 @@ The DHS document provides illustrative comparisons but does not publish degree-s
 st.caption("Rule text: https://public-inspection.federalregister.gov/2025-23853.pdf")
 
 PRESETS = {
-    "Baseline (historical data)": {
+    "Baseline (purely based on historical data)": {
         "total_unique": 320_711,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
