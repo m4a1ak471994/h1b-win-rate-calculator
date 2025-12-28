@@ -314,7 +314,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
                 disabled=locked,
             )
 
-        st.markdown("**Wage-level shares** (the model will normalize within each degree group)")
+        st.markdown("**Wage-level shares** within each applicant degree group")
 
         c1, c2 = st.columns(2)
         with c1:
@@ -412,9 +412,16 @@ def compare_two(rawA, rawB, yearsA, yearsB):
 st.set_page_config(page_title="H-1B Win Rate Calculator", layout="wide")
 st.title("H-1B Weighted Lottery Win Rate Calculator")
 st.caption("Round 1: regular cap across ALL tickets. Round 2: masters cap across surviving Masters/PhD tickets.")
+st.markdown("""
+This app estimates H-1B selection probabilities under the DHS/USCIS **weighted lottery** rule (Dec 29, 2025).
+Weights are based on **wage levels** (WL1–WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**, and each ticket represents one lottery entry with the same chance of being selected.
+The app models the **two-round** process (regular cap + advanced-degree cap) and reports **annual** and **multi-year** win rates **separately for Bachelors and Masters/PhD**.
+The DHS document provides illustrative comparisons but does not publish degree-split or multi-year win-rate calculations.
+""")
+st.caption("Rule text: https://public-inspection.federalregister.gov/2025-23853.pdf")
 
 PRESETS = {
-    "Baseline (historical)": {
+    "Baseline (historical data)": {
         "total_unique": 320_711,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
@@ -424,7 +431,7 @@ PRESETS = {
         "years": 3,
         "method": "independent",
     },
-    "Concern-based (best guess)": {
+    "Lower total volume and bachelor share, more WL2": {
         "total_unique": 250_000,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
@@ -434,7 +441,7 @@ PRESETS = {
         "years": 3,
         "method": "independent",
     },
-    "Ticket inflation (wage-upcoding sensitivity)": {
+    "Same total volume, more WL3/WL4": {
         "total_unique": 320_711,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
