@@ -32,8 +32,8 @@ Wage levels map to ticket counts:
   - The app will **normalize** shares within each degree group if they do not sum to 1.
   - If the sum is 0, the residual allocation logic effectively assigns all candidates to WL4.
 - **Probability method** (`method`):
-  - `independent`: per-candidate probability for `m` tickets is `p = 1 - (1 - p_ticket) ** m`
-  - `linear`: per-candidate probability for `m` tickets is `p = min(1, m * p_ticket)`
+  - `independent`: per-candidate probability for `k` tickets is `p = 1 - (1 - p_ticket) ** k`
+  - `linear`: per-candidate probability for `k` tickets is `p = min(1, k * p_ticket)`
 - **Years** (`years`): number of attempts (used for multi-year probability).
 
 ---
@@ -53,10 +53,10 @@ Compute per-ticket win probability:
 
 (If `total_tickets_r1` is 0, the implementation guards and treats the probability as 1.)
 
-Convert per-ticket probability to per-candidate probability by wage level (`m` tickets):
+Convert per-ticket probability to per-candidate probability by wage level (`k` tickets):
 
-- Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** m`
-- Linear model:      `p1_candidate = min(1, m * p1_ticket)`
+- Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** k`
+- Linear model:      `p1_candidate = min(1, k * p1_ticket)`
 
 Bachelors’ annual win probability is simply:
 
@@ -72,10 +72,10 @@ Compute Round 2 per-ticket win probability among Masters/PhD survivors:
 
 `p2_ticket = min(1, cap_masters / total_tickets_r2)`
 
-Convert to per-candidate conditional probability by wage level (`m` tickets):
+Convert to per-candidate conditional probability by wage level (`k` tickets):
 
-- Independent model: `p2_cond = 1 - (1 - p2_ticket) ** m`
-- Linear model:      `p2_cond = min(1, m * p2_ticket)`
+- Independent model: `p2_cond = 1 - (1 - p2_ticket) ** k`
+- Linear model:      `p2_cond = min(1, k * p2_ticket)`
 
 Combine Masters/PhD annual probability across rounds:
 
