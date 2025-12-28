@@ -43,17 +43,13 @@ Wage levels map to ticket counts:
 2) Convert headcounts into **weighted tickets** using the fixed multipliers.
 
 3) **Round 1:** compute per-ticket win probability
-$$
-p_{1,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_regular}}{\text{total\_tickets\_r1}}\right)
-$$
+`p1_ticket = min(1, cap_regular / total_tickets_r1)`
 Convert it to per-candidate win probability for each wage level (m tickets).
 
 4) **Round 2:** estimate how many Masters/PhD candidates remain after Round 1 (in expectation), form remaining tickets, and compute:
-
 $$
 p_{2,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_masters}}{\text{total\_tickets\_r2}}\right)
 $$
-
 Then compute per-candidate conditional win probabilities for Masters/PhD by wage level.
 
 5) Combine Masters/PhD annual probability:
