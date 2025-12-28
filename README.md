@@ -22,6 +22,7 @@ Four wage levels are mapped to different ticket counts:
 | WL4        | 4       |
 
 Source: DHS/USCIS final rule on H-1B weighted selection (Dec. 29, 2025).
+
 Official copy: https://public-inspection.federalregister.gov/2025-23853.pdf
 
 ### Inputs
