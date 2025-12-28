@@ -1,11 +1,11 @@
 # H-1B Weighted Lottery Win Rate Calculator (Streamlit)
 
-A Streamlit app that estimates H-1B lottery win rates under a **2-round** selection process with **weighted tickets** by wage level.
+A Streamlit app that estimates H-1B lottery win rates under a **2-round** selection process with **weighted tickets** by wage level and degree type.
 
 - **Round 1 (Regular cap):** selects from *all* tickets (Bachelors + Masters/PhD).
 - **Round 2 (Masters cap):** selects from *remaining* Masters/PhD candidates who did not win in Round 1.
 
-The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts).
+The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts) for Bachelors and Masters/PhD separately.
 
 ---
 
