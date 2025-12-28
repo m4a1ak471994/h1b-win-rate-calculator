@@ -14,8 +14,8 @@ Note: Ticket multipliers are FIXED by policy here:
 WL1..WL4 => 1..4 tickets respectively.
 
 UI features:
-1) Preset locking: choosing a preset locks inputs; choose "Custom" to edit.
-2) Preset sync: switching presets updates the inputs immediately.
+1) Preset sync: switching presets updates the input widgets immediately.
+2) Preset locking: preset scenarios are fixed; choose "Custom" to edit inputs.
 3) Compare mode: side-by-side comparison of two scenarios (A vs B), including deltas.
 """
 
@@ -162,19 +162,6 @@ def h1b_weighted_win_rates(
             "wage_shares_masters": wage_shares_masters,
             "multipliers_fixed": MULTIPLIERS,
         },
-        "intermediate": {
-            "bachelors_total": bachelors_total,
-            "masters_total": masters_total,
-            "bachelors_counts": bachelors_counts,
-            "masters_counts": masters_counts,
-            "tickets_round1_bachelors": bach_tickets,
-            "tickets_round1_masters": mast_tickets,
-            "tickets_round1_total": total_tickets_r1,
-            "p1_ticket": p1_ticket,
-            "masters_survivors_counts": mast_survivors,
-            "tickets_round2_masters_survivors": total_tickets_r2,
-            "p2_ticket": p2_ticket,
-        },
         "results": {
             "annual_win_rate": {
                 "Bachelors": {f"WL{lv}": annual_bachelors[lv] for lv in sorted(MULTIPLIERS)},
@@ -217,9 +204,7 @@ def format_percent_df(df, years):
 
 
 def _apply_defaults_to_session(key_prefix, defaults):
-    """
-    Force-set widget values in st.session_state so the UI updates when switching presets.
-    """
+    """Force-set widget values in st.session_state so the UI updates when switching presets."""
     st.session_state[f"{key_prefix}_total_unique"] = int(defaults["total_unique"])
     st.session_state[f"{key_prefix}_cap_regular"] = int(defaults["cap_regular"])
     st.session_state[f"{key_prefix}_cap_masters"] = int(defaults["cap_masters"])
@@ -243,7 +228,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
     Renders one scenario's input panel + results.
     Returns (out_dict, raw_results_df)
 
-    Key behavior:
+    Behavior:
     - Preset != Custom: inputs are disabled and forced to preset values.
     - Preset == Custom: inputs enabled and can be changed.
     - Switching presets updates the input widgets immediately (session_state overwrite).
@@ -255,9 +240,9 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         st.markdown(f"### {title}")
 
         preset_options = ["Custom"] + list(preset_dict.keys())
+        preset_key = f"{key_prefix}_preset"
 
         # Initialize preset selection if missing
-        preset_key = f"{key_prefix}_preset"
         if preset_key not in st.session_state:
             st.session_state[preset_key] = "Baseline (historical)"
 
@@ -265,7 +250,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
             chosen = st.session_state[preset_key]
             if chosen != "Custom":
                 _apply_defaults_to_session(key_prefix, preset_dict[chosen])
-            # If chosen == Custom: do NOT overwrite; keep current values as the starting point.
+            # If Custom: do not overwrite the current values.
 
         st.selectbox(
             "Scenario preset",
@@ -277,15 +262,10 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         preset_name = st.session_state[preset_key]
         locked = (preset_name != "Custom")
 
-        # If first time rendering widgets for this scenario, initialize values:
-        # - If locked preset: force preset values
-        # - Else (Custom): start from baseline values
+        # First-time initialization of widget values
         if f"{key_prefix}_total_unique" not in st.session_state:
             init_defaults = preset_dict[preset_name] if locked else preset_dict["Baseline (historical)"]
             _apply_defaults_to_session(key_prefix, init_defaults)
-
-        if locked:
-            st.info("🔒 Preset is locked. Choose **Custom** to edit inputs.", icon="🔒")
 
         colA, colB = st.columns(2)
         with colA:
@@ -394,9 +374,6 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
             key=f"{key_prefix}_download",
         )
 
-        with st.expander("Intermediate numbers (debug)"):
-            st.json(out["intermediate"])
-
         return out, raw_df
 
 
@@ -475,7 +452,7 @@ if mode == "Single scenario":
     scenario_panel("S", "Scenario", PRESETS)
 
 else:
-    st.info("Tip: Choose presets for A and B. Presets are locked; choose Custom to edit inputs.")
+    st.info("Tip: Choose presets for A and B. Choose Custom to edit inputs.", icon="ℹ️")
     colA, colB = st.columns(2)
 
     outA, rawA = scenario_panel("A", "Scenario A", PRESETS, container=colA)
@@ -496,5 +473,4 @@ else:
         mime="text/csv",
         key="cmp_download",
     )
-
 
