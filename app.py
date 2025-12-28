@@ -412,7 +412,6 @@ def compare_two(rawA, rawB, yearsA, yearsB):
 
 st.set_page_config(page_title="H-1B Win Rate Calculator", layout="wide")
 st.title("H-1B Weighted Lottery Win Rate Calculator")
-st.caption("Round 1: regular cap across ALL tickets. Round 2: masters cap across surviving Masters/PhD tickets.")
 st.markdown("""
 This app estimates H-1B selection probabilities under the DHS/USCIS **weighted lottery** rule (Dec 29, 2025).
 Weights are based on **wage levels** (WL1–WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**, and each ticket represents one lottery entry with the same chance of being selected.
