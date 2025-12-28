@@ -49,9 +49,11 @@ $$
 Convert it to per-candidate win probability for each wage level (m tickets).
 
 4) **Round 2:** estimate how many Masters/PhD candidates remain after Round 1 (in expectation), form remaining tickets, and compute:
+
 $$
 p_{2,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_masters}}{\text{total\_tickets\_r2}}\right)
 $$
+
 Then compute per-candidate conditional win probabilities for Masters/PhD by wage level.
 
 5) Combine Masters/PhD annual probability:
