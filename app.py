@@ -452,7 +452,6 @@ if mode == "Single scenario":
     scenario_panel("S", "Scenario", PRESETS)
 
 else:
-    st.info("Tip: Choose presets for A and B. Choose Custom to edit inputs.", icon="ℹ️")
     colA, colB = st.columns(2)
 
     outA, rawA = scenario_panel("A", "Scenario A", PRESETS, container=colA)
