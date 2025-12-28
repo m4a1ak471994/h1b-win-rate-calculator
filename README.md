@@ -3,7 +3,7 @@
 A Streamlit app that estimates H-1B lottery win rates under a **2-round** selection process with **weighted tickets** by wage level.
 
 - **Round 1 (Regular cap):** selects from *all* tickets (Bachelors + Masters/PhD).
-- **Round 2 (Masters cap):** selects from *remaining* Masters/PhD tickets that did not win in Round 1.
+- **Round 2 (Masters cap):** selects from *remaining* Masters/PhD candidates who did not win in Round 1.
 
 The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts).
 
@@ -27,43 +27,64 @@ Wage levels map to ticket counts:
 - **Total applicants (unique)** (`total_unique`): total number of individuals in the lottery.
 - **Regular cap (Round 1)** (`cap_regular`): number of selections in Round 1.
 - **Masters cap (Round 2)** (`cap_masters`): number of selections in Round 2 among remaining Masters/PhD candidates.
-- **Bachelor share** (`bachelor_share`): fraction of total applicants that are Bachelors; Masters/PhD share is `1 - bachelor_share`.
+- **Bachelor share** (`bachelor_share`): fraction of applicants that are Bachelors; Masters/PhD share is `1 - bachelor_share`.
 - **Wage-level shares** (`wage_b`, `wage_m`): wage-level composition within each degree group.
   - The app will **normalize** shares within each degree group if they do not sum to 1.
   - If the sum is 0, the residual allocation logic effectively assigns all candidates to WL4.
 - **Probability method** (`method`):
-  - `independent`: per-candidate probability = `1 - (1 - p_ticket)^m`
-  - `linear`: per-candidate probability = `min(1, m * p_ticket)`
+  - `independent`: per-candidate probability for `m` tickets is `p = 1 - (1 - p_ticket) ** m`
+  - `linear`: per-candidate probability for `m` tickets is `p = min(1, m * p_ticket)`
 - **Years** (`years`): number of attempts (used for multi-year probability).
 
-### How the probability is computed
+---
 
-1) Convert wage shares into **integer headcounts** per wage level (WL1–WL4) for each degree group.
+## How the Probability Is Computed
 
-2) Convert headcounts into **weighted tickets** using the fixed multipliers.
+### Step 1) Convert wage shares → integer headcounts
+Within each degree group, shares are converted to integer counts that sum to the group total.
 
-3) **Round 1:** compute per-ticket win probability
+### Step 2) Convert headcounts → weighted tickets
+Tickets are computed using the fixed multipliers (WL1..WL4 → 1..4 tickets).
+
+### Step 3) Round 1 (Regular cap)
+Compute per-ticket win probability:
+
 `p1_ticket = min(1, cap_regular / total_tickets_r1)`
-Convert it to per-candidate win probability for each wage level (m tickets).
 
-4) **Round 2:** estimate how many Masters/PhD candidates remain after Round 1 (in expectation), form remaining tickets, and compute:
-$$
-p_{2,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_masters}}{\text{total\_tickets\_r2}}\right)
-$$
-Then compute per-candidate conditional win probabilities for Masters/PhD by wage level.
+(If `total_tickets_r1` is 0, the implementation guards and treats the probability as 1.)
 
-5) Combine Masters/PhD annual probability:
-$$
-p_{\text{annual}} = p_1 + (1-p_1)\cdot p_{2|\text{no win in r1}}
-$$
-Bachelors only participate in Round 1.
+Convert per-ticket probability to per-candidate probability by wage level (`m` tickets):
 
-6) Multi-year probability over `years` attempts:
-$$
-p_{\text{multi}} = 1 - (1 - p_{\text{annual}})^{\text{years}}
-$$
+- Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** m`
+- Linear model:      `p1_candidate = min(1, m * p1_ticket)`
 
-> Note: the app uses an **expected survivors** approximation for Round 2 rather than simulating discrete draws.
+Bachelors’ annual win probability is simply:
+
+`p_annual_bachelors = p1_candidate`
+
+### Step 4) Round 2 (Masters cap)
+Estimate Masters/PhD winners in Round 1 **in expectation**, then compute survivors:
+
+`expected_winners_r1 = count * p1_candidate`  
+`survivors = count - expected_winners_r1`
+
+Compute Round 2 per-ticket win probability among Masters/PhD survivors:
+
+`p2_ticket = min(1, cap_masters / total_tickets_r2)`
+
+Convert to per-candidate conditional probability by wage level (`m` tickets):
+
+- Independent model: `p2_cond = 1 - (1 - p2_ticket) ** m`
+- Linear model:      `p2_cond = min(1, m * p2_ticket)`
+
+Combine Masters/PhD annual probability across rounds:
+
+`p_annual_masters = p1_candidate + (1 - p1_candidate) * p2_cond`
+
+### Step 5) Multi-year probability
+For `years` independent attempts:
+
+`p_multi = 1 - (1 - p_annual) ** years`
 
 ---
 
@@ -82,7 +103,7 @@ The app includes:
 - **Baseline (historical data):** a default configuration (edit values in `PRESETS`).
 - Additional presets for sensitivity analysis (e.g., lower total applicants, different wage-level mixes).
 
-You can always choose **Custom** to modify parameters.
+Choose **Custom** to modify parameters.
 
 ---
 
@@ -91,3 +112,4 @@ You can always choose **Custom** to modify parameters.
 ### 1) Install dependencies
 ```bash
 pip install -r requirements.txt
+
