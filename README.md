@@ -11,8 +11,8 @@ The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 
 
 ## Model Summary
 
-### Ticket multipliers (fixed policy assumption)
-Wage levels map to ticket counts:
+### Ticket multipliers (fixed assumption)
+Four wage levels are mapped to different ticket counts:
 
 | Wage Level | Tickets |
 |-----------:|--------:|
@@ -21,7 +21,8 @@ Wage levels map to ticket counts:
 | WL3        | 3       |
 | WL4        | 4       |
 
-> These multipliers are treated as fixed constants in this app.
+Source: DHS/USCIS final rule on H-1B weighted selection (Dec. 29, 2025).
+Official copy: https://public-inspection.federalregister.gov/2025-23853.pdf
 
 ### Inputs
 - **Total applicants (unique)** (`total_unique`): total number of individuals in the lottery.
