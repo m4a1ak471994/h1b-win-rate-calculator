@@ -95,7 +95,7 @@ For `years` independent attempts:
 ## App Features
 
 - **Preset sync:** switching presets updates input widgets immediately.
-- **Preset locking:** preset scenarios are fixed; choose Custom option to edit inputs.
+- **Preset locking:** preset scenarios are fixed; choose **Custom** option to edit inputs.
 - **Compare mode:** side-by-side comparison of two scenarios (A vs B), including deltas.
 - **CSV export:** download per-scenario results and comparison tables.
 
@@ -107,7 +107,7 @@ The app includes:
 - **Baseline (historical data):** a default configuration purely based on historical data from the tables in the DHS Dec. 29 rule. Notice that though Table 13 in the original document compares the H-1B lottery win rate under the new and old systems, it pools bachelor candidates with masters/PhD candidates, and does not calculate the multi-year win rate.
 - Additional presets for sensitivity analysis (e.g., lower total applicants, different wage-level mixes).
 
-Choose **Custom** to modify parameters.
+Choose **Custom** option to modify parameters.
 
 ---
 
