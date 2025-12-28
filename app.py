@@ -1,4 +1,3 @@
-
 """
 H-1B (weighted tickets) win-rate calculator for the 2-round lottery:
 - Round 1: Regular cap (e.g., 65,000) among ALL tickets (Bachelors + Masters/PhD)
@@ -15,10 +14,10 @@ Note: Ticket multipliers are FIXED by policy here:
 WL1..WL4 => 1..4 tickets respectively.
 
 UI features:
-1) Preset auto-switch: if you start from a preset and change any input, the preset will auto-switch to "Custom".
-2) Compare mode: optional side-by-side comparison of two scenarios (A vs B), including deltas.
+1) Preset locking: choosing a preset locks inputs; choose "Custom" to edit.
+2) Preset sync: switching presets updates the inputs immediately.
+3) Compare mode: side-by-side comparison of two scenarios (A vs B), including deltas.
 """
-
 
 import streamlit as st
 import pandas as pd
@@ -56,21 +55,15 @@ def allocate_counts(total, shares_by_level, levels=(1, 2, 3, 4), normalize=True)
 
 
 def tickets_from_counts(counts):
-    """
-    Convert headcounts into weighted tickets using fixed WL multipliers.
-    """
+    """Convert headcounts into weighted tickets using fixed WL multipliers."""
     return sum(counts[lv] * MULTIPLIERS[lv] for lv in counts)
 
 
 def per_candidate_prob(p_ticket, m, method="independent"):
     """
     Convert per-ticket win prob to per-candidate win prob given m tickets.
-
-    method:
       - "linear":        p = min(1, m * p_ticket)
-                         (Spreadsheet-style approximation used originally: proportional to ticket count)
       - "independent":   p = 1 - (1 - p_ticket)^m
-                         (Complement: lose all m tickets, assuming independence)
     """
     p_ticket = max(0.0, min(1.0, float(p_ticket)))
     if m <= 0:
@@ -97,18 +90,15 @@ def h1b_weighted_win_rates(
     total_unique=320_711,
     cap_regular=65_000,
     cap_masters=20_000,
-    bachelor_share=0.644,                  # undergrad share
-    wage_shares_bachelors=None,            # dict: {1:...,2:...,3:...,4:...}
-    wage_shares_masters=None,              # dict: {1:...,2:...,3:...,4:...}
+    bachelor_share=0.644,
+    wage_shares_bachelors=None,
+    wage_shares_masters=None,
     years=3,
-    method="linear",
+    method="independent",
 ):
     """
-    Returns a dict with:
-      - intermediate totals (counts, tickets, p_ticket)
-      - final annual win rates & multi-year probabilities by (degree, wage level)
+    Returns a dict with intermediate totals + annual & multi-year win rates.
     """
-
     if wage_shares_bachelors is None:
         wage_shares_bachelors = {1: 0.20, 2: 0.61, 3: 0.13, 4: 0.06}
     if wage_shares_masters is None:
@@ -156,7 +146,7 @@ def h1b_weighted_win_rates(
         for lv in MULTIPLIERS
     }
 
-    # Multi-year (e.g., 3 attempts on STEM OPT)
+    # Multi-year
     multi_bachelors = {lv: multi_year_prob(annual_bachelors[lv], years=years) for lv in MULTIPLIERS}
     multi_masters = {lv: multi_year_prob(annual_masters[lv], years=years) for lv in MULTIPLIERS}
 
@@ -194,10 +184,6 @@ def h1b_weighted_win_rates(
                 "Bachelors": {f"WL{lv}": multi_bachelors[lv] for lv in sorted(MULTIPLIERS)},
                 "Masters/PhD": {f"WL{lv}": multi_masters[lv] for lv in sorted(MULTIPLIERS)},
             },
-            "round1_win_rate": {f"WL{lv}": p1_by_level[lv] for lv in sorted(MULTIPLIERS)},
-            "round2_win_rate_conditional_masters": {
-                f"WL{lv}": p2_cond_by_level[lv] for lv in sorted(MULTIPLIERS)
-            },
         },
     }
 
@@ -230,13 +216,37 @@ def format_percent_df(df, years):
     return dff
 
 
+def _apply_defaults_to_session(key_prefix, defaults):
+    """
+    Force-set widget values in st.session_state so the UI updates when switching presets.
+    """
+    st.session_state[f"{key_prefix}_total_unique"] = int(defaults["total_unique"])
+    st.session_state[f"{key_prefix}_cap_regular"] = int(defaults["cap_regular"])
+    st.session_state[f"{key_prefix}_cap_masters"] = int(defaults["cap_masters"])
+    st.session_state[f"{key_prefix}_bachelor_share"] = float(defaults["bachelor_share"])
+    st.session_state[f"{key_prefix}_years"] = int(defaults["years"])
+    st.session_state[f"{key_prefix}_method"] = str(defaults["method"])
+
+    st.session_state[f"{key_prefix}_b1"] = float(defaults["wage_b"][1])
+    st.session_state[f"{key_prefix}_b2"] = float(defaults["wage_b"][2])
+    st.session_state[f"{key_prefix}_b3"] = float(defaults["wage_b"][3])
+    st.session_state[f"{key_prefix}_b4"] = float(defaults["wage_b"][4])
+
+    st.session_state[f"{key_prefix}_m1"] = float(defaults["wage_m"][1])
+    st.session_state[f"{key_prefix}_m2"] = float(defaults["wage_m"][2])
+    st.session_state[f"{key_prefix}_m3"] = float(defaults["wage_m"][3])
+    st.session_state[f"{key_prefix}_m4"] = float(defaults["wage_m"][4])
+
+
 def scenario_panel(key_prefix, title, preset_dict, container=None):
     """
     Renders one scenario's input panel + results.
     Returns (out_dict, raw_results_df)
 
-    Fix for your error:
-    - If `container` is None, we create a container so `with container:` always works.
+    Key behavior:
+    - Preset != Custom: inputs are disabled and forced to preset values.
+    - Preset == Custom: inputs enabled and can be changed.
+    - Switching presets updates the input widgets immediately (session_state overwrite).
     """
     if container is None:
         container = st.container()
@@ -244,59 +254,84 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
     with container:
         st.markdown(f"### {title}")
 
-        preset_name = st.selectbox(
+        preset_options = ["Custom"] + list(preset_dict.keys())
+
+        # Initialize preset selection if missing
+        preset_key = f"{key_prefix}_preset"
+        if preset_key not in st.session_state:
+            st.session_state[preset_key] = "Baseline (historical)"
+
+        def on_preset_change():
+            chosen = st.session_state[preset_key]
+            if chosen != "Custom":
+                _apply_defaults_to_session(key_prefix, preset_dict[chosen])
+            # If chosen == Custom: do NOT overwrite; keep current values as the starting point.
+
+        st.selectbox(
             "Scenario preset",
-            ["Custom"] + list(preset_dict.keys()),
-            key=f"{key_prefix}_preset",
+            preset_options,
+            key=preset_key,
+            on_change=on_preset_change,
         )
 
-        defaults = preset_dict["Baseline (historical)"] if preset_name == "Custom" else preset_dict[preset_name]
+        preset_name = st.session_state[preset_key]
+        locked = (preset_name != "Custom")
+
+        # If first time rendering widgets for this scenario, initialize values:
+        # - If locked preset: force preset values
+        # - Else (Custom): start from baseline values
+        if f"{key_prefix}_total_unique" not in st.session_state:
+            init_defaults = preset_dict[preset_name] if locked else preset_dict["Baseline (historical)"]
+            _apply_defaults_to_session(key_prefix, init_defaults)
+
+        if locked:
+            st.info("🔒 Preset is locked. Choose **Custom** to edit inputs.", icon="🔒")
 
         colA, colB = st.columns(2)
         with colA:
             total_unique = st.number_input(
                 "Total applicants (unique)",
                 min_value=0,
-                value=int(defaults["total_unique"]),
                 step=1000,
                 key=f"{key_prefix}_total_unique",
+                disabled=locked,
             )
             cap_regular = st.number_input(
                 "Regular cap (Round 1)",
                 min_value=0,
-                value=int(defaults["cap_regular"]),
                 step=1000,
                 key=f"{key_prefix}_cap_regular",
+                disabled=locked,
             )
             bachelor_share = st.slider(
                 "Bachelor share",
                 0.0,
                 1.0,
-                float(defaults["bachelor_share"]),
                 0.001,
                 key=f"{key_prefix}_bachelor_share",
+                disabled=locked,
             )
 
         with colB:
             cap_masters = st.number_input(
                 "Masters cap (Round 2)",
                 min_value=0,
-                value=int(defaults["cap_masters"]),
                 step=1000,
                 key=f"{key_prefix}_cap_masters",
+                disabled=locked,
             )
             years = st.number_input(
                 "Years (e.g., STEM OPT attempts)",
                 min_value=1,
-                value=int(defaults["years"]),
                 step=1,
                 key=f"{key_prefix}_years",
+                disabled=locked,
             )
             method = st.selectbox(
                 "Probability method",
                 ["linear", "independent"],
-                index=0 if defaults["method"] == "linear" else 1,
                 key=f"{key_prefix}_method",
+                disabled=locked,
             )
 
         st.markdown("**Wage-level shares** (the model will normalize within each degree group)")
@@ -304,31 +339,27 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**Bachelors**")
-            b1 = st.number_input("BA WL1 share", min_value=0.0, value=float(defaults["wage_b"][1]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_b1")
-            b2 = st.number_input("BA WL2 share", min_value=0.0, value=float(defaults["wage_b"][2]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_b2")
-            b3 = st.number_input("BA WL3 share", min_value=0.0, value=float(defaults["wage_b"][3]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_b3")
-            b4 = st.number_input("BA WL4 share", min_value=0.0, value=float(defaults["wage_b"][4]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_b4")
-
-            bsum = b1 + b2 + b3 + b4
-            st.caption(f"BA shares sum = {bsum:.4f} (will normalize if not 1.0)")
+            b1 = st.number_input("BA WL1 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_b1", disabled=locked)
+            b2 = st.number_input("BA WL2 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_b2", disabled=locked)
+            b3 = st.number_input("BA WL3 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_b3", disabled=locked)
+            b4 = st.number_input("BA WL4 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_b4", disabled=locked)
+            st.caption(f"BA shares sum = {(b1+b2+b3+b4):.4f} (will normalize if not 1.0)")
 
         with c2:
             st.markdown("**Masters/PhD**")
-            m1 = st.number_input("MS WL1 share", min_value=0.0, value=float(defaults["wage_m"][1]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_m1")
-            m2 = st.number_input("MS WL2 share", min_value=0.0, value=float(defaults["wage_m"][2]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_m2")
-            m3 = st.number_input("MS WL3 share", min_value=0.0, value=float(defaults["wage_m"][3]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_m3")
-            m4 = st.number_input("MS WL4 share", min_value=0.0, value=float(defaults["wage_m"][4]),
-                                step=0.01, format="%.4f", key=f"{key_prefix}_m4")
-
-            msum = m1 + m2 + m3 + m4
-            st.caption(f"MS shares sum = {msum:.4f} (will normalize if not 1.0)")
+            m1 = st.number_input("MS WL1 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_m1", disabled=locked)
+            m2 = st.number_input("MS WL2 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_m2", disabled=locked)
+            m3 = st.number_input("MS WL3 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_m3", disabled=locked)
+            m4 = st.number_input("MS WL4 share", min_value=0.0, step=0.01, format="%.4f",
+                                 key=f"{key_prefix}_m4", disabled=locked)
+            st.caption(f"MS shares sum = {(m1+m2+m3+m4):.4f} (will normalize if not 1.0)")
 
         wage_shares_bachelors = {1: b1, 2: b2, 3: b3, 4: b4}
         wage_shares_masters = {1: m1, 2: m2, 3: m3, 4: m4}
@@ -370,11 +401,6 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
 
 def compare_two(rawA, rawB, yearsA, yearsB):
-    """
-    Compare two result tables (A vs B).
-    If years differ, we compare both Annual and each scenario's multi-year column separately.
-    """
-    # Ensure consistent join keys
     key_cols = ["Profile", "Wage Level"]
     a = rawA.copy()
     b = rawB.copy()
@@ -383,15 +409,11 @@ def compare_two(rawA, rawB, yearsA, yearsB):
     b = b.rename(columns={"Annual": "Annual_B", f"{yearsB}-Year": f"{yearsB}-Year_B"})
 
     merged = a.merge(b, on=key_cols, how="inner")
+    merged["Annual_diff_pp"] = (merged["Annual_B"] - merged["Annual_A"]) * 100
 
-    merged["Annual_diff_pp"] = (merged["Annual_B"] - merged["Annual_A"]) * 100  # percentage points
-
-    # If same years, add a unified multi-year diff
     if yearsA == yearsB:
-        my_col = f"{yearsA}-Year"
-        merged[f"{my_col}_diff_pp"] = (merged[f"{yearsA}-Year_B"] - merged[f"{yearsA}-Year_A"]) * 100
+        merged[f"{yearsA}-Year_diff_pp"] = (merged[f"{yearsA}-Year_B"] - merged[f"{yearsA}-Year_A"]) * 100
 
-    # Pretty formatting for display
     disp = merged[key_cols].copy()
     disp["Annual A"] = (merged["Annual_A"] * 100).round(2).astype(str) + "%"
     disp["Annual B"] = (merged["Annual_B"] * 100).round(2).astype(str) + "%"
@@ -447,19 +469,15 @@ PRESETS = {
     },
 }
 
-mode = st.radio(
-    "Mode",
-    ["Single scenario", "Compare two scenarios"],
-    horizontal=True,
-)
+mode = st.radio("Mode", ["Single scenario", "Compare two scenarios"], horizontal=True)
 
 if mode == "Single scenario":
     scenario_panel("S", "Scenario", PRESETS)
 
 else:
-    st.info("Tip: Use different presets/inputs for A and B. The table below shows B − A differences in percentage points (pp).")
-
+    st.info("Tip: Choose presets for A and B. Presets are locked; choose Custom to edit inputs.")
     colA, colB = st.columns(2)
+
     outA, rawA = scenario_panel("A", "Scenario A", PRESETS, container=colA)
     outB, rawB = scenario_panel("B", "Scenario B", PRESETS, container=colB)
 
@@ -478,4 +496,5 @@ else:
         mime="text/csv",
         key="cmp_download",
     )
+
 
