@@ -63,12 +63,12 @@ Bachelors’ annual win probability is simply:
 `p_annual_bachelors = p1_candidate`
 
 ### Step 4) Round 2 (Masters cap)
-Estimate Masters/PhD winners in Round 1 **in expectation**, then compute survivors:
+Estimate Masters/PhD winners in Round 1 **in expectation**, then compute the rest:
 
 `expected_winners_r1 = count * p1_candidate`  
-`survivors = count - expected_winners_r1`
+`remaining = count - expected_winners_r1`
 
-Compute Round 2 per-ticket win probability among Masters/PhD survivors:
+Compute Round 2 per-ticket win probability among remaining Masters/PhD:
 
 `p2_ticket = min(1, cap_masters / total_tickets_r2)`
 
