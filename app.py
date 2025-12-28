@@ -278,7 +278,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
                 disabled=locked,
             )
             cap_regular = st.number_input(
-                "Regular cap (Round 1)",
+                "Round 1 Regular cap",
                 min_value=0,
                 step=1000,
                 key=f"{key_prefix}_cap_regular",
@@ -295,7 +295,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
         with colB:
             cap_masters = st.number_input(
-                "Masters cap (Round 2)",
+                "Round 2 cap (for Masters/PhDs)",
                 min_value=0,
                 step=1000,
                 key=f"{key_prefix}_cap_masters",
