@@ -43,27 +43,27 @@ Wage levels map to ticket counts:
 2) Convert headcounts into **weighted tickets** using the fixed multipliers.
 
 3) **Round 1:** compute per-ticket win probability
-\[
+$$
 p_{1,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_regular}}{\text{total\_tickets\_r1}}\right)
-\]
+$$
 Convert it to per-candidate win probability for each wage level (m tickets).
 
 4) **Round 2:** estimate how many Masters/PhD candidates remain after Round 1 (in expectation), form remaining tickets, and compute:
-\[
+$$
 p_{2,\text{ticket}} = \min\left(1,\ \frac{\text{cap\_masters}}{\text{total\_tickets\_r2}}\right)
-\]
+$$
 Then compute per-candidate conditional win probabilities for Masters/PhD by wage level.
 
 5) Combine Masters/PhD annual probability:
-\[
+$$
 p_{\text{annual}} = p_1 + (1-p_1)\cdot p_{2|\text{no win in r1}}
-\]
+$$
 Bachelors only participate in Round 1.
 
 6) Multi-year probability over `years` attempts:
-\[
+$$
 p_{\text{multi}} = 1 - (1 - p_{\text{annual}})^{\text{years}}
-\]
+$$
 
 > Note: the app uses an **expected survivors** approximation for Round 2 rather than simulating discrete draws.
 
