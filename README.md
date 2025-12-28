@@ -14,7 +14,7 @@ The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 
 ## Model Summary
 
 ### Ticket multipliers (fixed assumption)
-Four wage levels are mapped to different ticket counts:
+Four wage levels are mapped to different ticket counts based on the original document:
 
 | Wage Level | Tickets |
 |-----------:|--------:|
@@ -23,9 +23,6 @@ Four wage levels are mapped to different ticket counts:
 | WL3        | 3       |
 | WL4        | 4       |
 
-Source: DHS/USCIS final rule on H-1B weighted selection (Dec. 29, 2025).
-
-Official copy: https://public-inspection.federalregister.gov/2025-23853.pdf
 
 ### Inputs
 - **Total applicants (unique)** (`total_unique`): total number of individuals in the lottery.
@@ -110,10 +107,8 @@ The app includes:
 Choose **Custom** option to modify parameters.
 
 ---
+## Reference
+DHS/USCIS final rule on H-1B weighted selection (Dec. 29, 2025).
+Official copy: https://public-inspection.federalregister.gov/2025-23853.pdf
 
-## Running Locally
-
-### 1) Install dependencies
-```bash
-pip install -r requirements.txt
 
