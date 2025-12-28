@@ -2,12 +2,12 @@
 
 A Streamlit app that estimates H-1B lottery win rates under a 2-round selection process with weighted tickets **by wage level and degree type**.
 
-On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted selection** by prevailing-wage level (WL1–WL4). This app estimates win rates under that system while preserving the familiar two-round structure (regular cap, then advanced-degree cap), and reports both **annual** and **multi-year** probabilities (e.g., across multiple OPT/STEM attempts). It also separates **Bachelors vs. Masters/PhD**, which are pooled in DHS’s Table 13 and not extended to multi-year odds.
+On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted selection** by wage level (WL1–WL4). This app estimates win rates under that system while preserving the existent two-round structure. **The final rule itself does not publish the degree-split or multi-year win-rate calculations**, so this app computes them.
 
 - **Round 1 (Regular cap):** selects from *all* tickets (Bachelors + Masters/PhD).
 - **Round 2 (Masters cap):** selects from *remaining* Masters/PhD candidates who did not win in Round 1.
 
-The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts for candidates with OPT STEM extension) for Bachelors and Masters/PhD separately.
+The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts for candidates with OPT STEM extension) for **Bachelors and Masters/PhD separately**.
 
 ---
 
