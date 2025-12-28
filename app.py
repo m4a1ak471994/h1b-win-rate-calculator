@@ -288,7 +288,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
                 "Bachelor share",
                 0.0,
                 1.0,
-                0.001,
+                step=0.001,
                 key=f"{key_prefix}_bachelor_share",
                 disabled=locked,
             )
