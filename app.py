@@ -1,3 +1,4 @@
+
 """
 H-1B (weighted tickets) win-rate calculator for the 2-round lottery:
 - Round 1: Regular cap (e.g., 65,000) among ALL tickets (Bachelors + Masters/PhD)
@@ -21,6 +22,27 @@ UI features:
 
 import streamlit as st
 import pandas as pd
+
+# ----------------------------
+# SEO & PAGE CONFIGURATION
+# ----------------------------
+# 1. Set a keyword-rich page title (max 60 chars is best for Google).
+# 2. Add an 'About' menu item for metadata.
+st.set_page_config(
+    page_title="H-1B Weighted Lottery Calculator 2026 | Win Rate Estimator",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://www.google.com',  # Replace with your actual help link
+        'Report a bug': "https://www.google.com",
+        'About': """
+        ### H-1B Weighted Lottery Calculator
+        This tool estimates H-1B selection probabilities under the new DHS Wage-Based Selection Rule (Final Rule 2025).
+        It calculates odds for Bachelors and Masters graduates across Wage Levels 1, 2, 3, and 4.
+        """
+    }
+)
 
 # Fixed ticket multipliers for different wage levels (policy)
 MULTIPLIERS = {1: 1, 2: 2, 3: 3, 4: 4}
@@ -226,12 +248,6 @@ def _apply_defaults_to_session(key_prefix, defaults):
 def scenario_panel(key_prefix, title, preset_dict, container=None):
     """
     Renders one scenario's input panel + results.
-    Returns (out_dict, raw_results_df)
-
-    Behavior:
-    - Preset != Custom: inputs are disabled and forced to preset values.
-    - Preset == Custom: inputs enabled and can be changed.
-    - Switching presets updates the input widgets immediately (session_state overwrite).
     """
     if container is None:
         container = st.container()
@@ -410,15 +426,23 @@ def compare_two(rawA, rawB, yearsA, yearsB):
 # Streamlit UI
 # ----------------------------
 
-st.set_page_config(page_title="H-1B Win Rate Calculator", layout="wide")
-st.title("H-1B Weighted Lottery Win Rate Calculator")
+# SEO: Title updated in st.set_page_config above.
+st.title("H-1B Weighted Lottery Win Rate Calculator (2026/2027 Rule)")
+
+# SEO: Text block added here so crawlers have content to index immediately
 st.markdown("""
-This app estimates H-1B selection probabilities under the DHS/USCIS **weighted lottery** rule (Dec 29, 2025).
-Weights are based on **wage levels** (WL1–WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**, and each ticket represents one lottery entry with the same chance of being selected.
-The app models the **two-round** process (regular cap + advanced-degree cap) and reports **annual** and **multi-year** win rates **separately for Bachelors and Masters/PhD**.
-The DHS document provides illustrative comparisons but does not publish degree-split or multi-year win-rate calculations.
+### Calculate your H-1B odds under the new DHS Wage-Based Selection Rule.
+This free tool helps F-1 students, Masters/PhD graduates, and H-1B applicants estimate their selection probability in the new **weighted lottery system**. 
+Visualize how **Wage Levels (Level 1, Level 2, Level 3, Level 4)** impact your chances in the Regular Cap and Master's Cap.
 """)
-st.caption("Rule text: https://public-inspection.federalregister.gov/2025-23853.pdf")
+
+st.markdown("""
+**How it works:**
+* **Weighted Selection:** Weights are based on Wage Levels (WL): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**.
+* **Two-Round Process:** The app calculates odds for the Regular Cap (65k) and the Advanced Degree Cap (20k).
+* **Multi-Year Odds:** Estimate your cumulative success rate over 3 years (e.g., STEM OPT duration).
+""")
+st.caption("Rule text source: https://public-inspection.federalregister.gov/2025-23853.pdf")
 
 PRESETS = {
     "Baseline (purely based on historical data)": {
