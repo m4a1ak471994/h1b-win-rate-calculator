@@ -58,6 +58,7 @@ Convert per-ticket probability to per-candidate probability by wage level (`k` t
 
 - Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** k`
 - Linear model:      `p1_candidate = min(1, k * p1_ticket)`
+(for simplicity, both approaches are approximations)
 
 Bachelors’ annual win probability is simply:
 
