@@ -35,6 +35,7 @@ Four wage levels are mapped to different ticket counts based on the original doc
 - **Probability method** (`method`):
   - `independent`: per-candidate probability for `k` tickets is `p = 1 - (1 - p_ticket) ** k`
   - `linear`: per-candidate probability for `k` tickets is `p = min(1, k * p_ticket)`
+  (for simplicity, both approaches are approximations)
 - **Years** (`years`): number of attempts (used for multi-year probability).
 
 ---
@@ -58,7 +59,6 @@ Convert per-ticket probability to per-candidate probability by wage level (`k` t
 
 - Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** k`
 - Linear model:      `p1_candidate = min(1, k * p1_ticket)`
-(for simplicity, both approaches are approximations)
 
 Bachelors’ annual win probability is simply:
 
