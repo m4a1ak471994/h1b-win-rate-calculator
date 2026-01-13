@@ -65,7 +65,7 @@ Bachelors’ annual win probability is simply:
 `p_annual_bachelors = p1_candidate`
 
 ### Step 4) Round 2 (Masters cap)
-Estimate Masters/PhD winners in Round 1 **in expectation**, then compute the rest:
+Estimate Masters/PhD winners in Round 1 in expectation, then compute the rest:
 
 `expected_winners_r1 = count * p1_candidate`  
 `remaining = count - expected_winners_r1`
