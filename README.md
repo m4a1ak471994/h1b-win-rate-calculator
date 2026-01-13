@@ -36,7 +36,7 @@ Four wage levels are mapped to different ticket counts based on the original doc
   - `independent`: per-candidate probability for `k` tickets is `p = 1 - (1 - p_ticket) ** k`
   - `linear`: per-candidate probability for `k` tickets is `p = min(1, k * p_ticket)`
     
-  (for simplicity, both approaches are approximations)
+    (for simplicity, both approaches are approximations)
 - **Years** (`years`): number of attempts (used for multi-year probability).
 
 ---
