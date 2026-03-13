@@ -1,20 +1,21 @@
 # H-1B Weighted Lottery Win Rate Calculator
 
-A Streamlit app that estimates H-1B lottery win rates under a 2-round selection process with weighted tickets **by wage level and degree type**.
+A Streamlit app that estimates H-1B lottery win rates under a 2-round selection process with weighted tickets by wage level and degree type.
 
-On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted selection** by wage level (WL1–WL4). This app estimates win rates under that system while preserving the existent two-round structure. **The final rule itself does not publish the degree-split or multi-year win-rate calculations**, so this app computes them.
+On December 29, 2025, DHS/USCIS finalized an H-1B rule that introduces weighted selection by wage level (`WL1`-`WL4`). This app estimates win rates under that system while preserving the two-round structure. The final rule itself does not publish degree-split or multi-year win-rate calculations, so this app computes them.
 
-- **Round 1 (Regular cap):** selects from *all* tickets (Bachelors + Masters/PhD).
-- **Round 2 (Masters cap):** selects from *remaining* Masters/PhD candidates who did not win in Round 1.
+- Round 1 (`cap_regular`) selects from all applicants.
+- Round 2 (`cap_masters`) selects from the remaining Masters/PhD applicants who were not selected in Round 1.
+- Once a candidate wins in any round, that candidate is removed from later draws together with all of that candidate's tickets.
 
-The app outputs **annual win rates** and **multi-year win rates** (e.g., over 3 attempts for candidates with OPT STEM extension) for **Bachelors and Masters/PhD separately**.
+The app outputs annual win rates and multi-year win rates for Bachelors and Masters/PhD separately.
 
 ---
 
 ## Model Summary
 
-### Ticket multipliers (fixed assumption)
-Four wage levels are mapped to different ticket counts based on the original document:
+### Ticket multipliers
+Four wage levels are mapped to fixed ticket counts:
 
 | Wage Level | Tickets |
 |-----------:|--------:|
@@ -23,93 +24,101 @@ Four wage levels are mapped to different ticket counts based on the original doc
 | WL3        | 3       |
 | WL4        | 4       |
 
-
 ### Inputs
-- **Total applicants (unique)** (`total_unique`): total number of individuals in the lottery.
-- **Regular cap (Round 1)** (`cap_regular`): number of selections in Round 1.
-- **Masters cap (Round 2)** (`cap_masters`): number of selections in Round 2 among remaining Masters/PhD candidates.
-- **Bachelor share** (`bachelor_share`): fraction of applicants that are Bachelors; Masters/PhD share is `1 - bachelor_share`.
-- **Wage-level shares** (`wage_b`, `wage_m`): wage-level composition within each degree group.
-  - The app will **normalize** shares within each degree group if they do not sum to 1.
-  - If the sum is 0, the residual allocation logic effectively assigns all candidates to WL4.
-- **Probability method** (`method`):
-  - `independent`: per-candidate probability for `k` tickets is `p = 1 - (1 - p_ticket) ** k`
-  - `linear`: per-candidate probability for `k` tickets is `p = min(1, k * p_ticket)`
-- **Years** (`years`): number of attempts (used for multi-year probability).
+- Total applicants (`total_unique`): total number of unique candidates in the lottery.
+- Regular cap (`cap_regular`): number of selections in Round 1.
+- Masters cap (`cap_masters`): number of selections in Round 2 among remaining Masters/PhD candidates.
+- Bachelor share (`bachelor_share`): fraction of applicants that are Bachelors. Masters/PhD share is `1 - bachelor_share`.
+- Wage-level shares (`wage_b`, `wage_m`): wage-level composition within each degree group.
+- Years (`years`): number of attempts used for the multi-year probability.
+- Simulation runs (`simulations`): number of Monte Carlo trials used to estimate annual win rates.
+- Random seed (`seed`): seed for reproducible simulation results.
+
+Notes:
+- Wage shares within each degree group are normalized if they do not sum to 1.
+- If a degree group's wage shares sum to 0, the app raises an error instead of guessing a fallback allocation.
 
 ---
 
 ## How the Probability Is Computed
 
-### Step 1) Convert wage shares → integer headcounts
-Within each degree group, shares are converted to integer counts that sum to the group total.
+### Step 1) Convert wage shares to integer headcounts
+Within each degree group, the app converts wage-level shares into integer candidate counts that sum to the group total.
 
-### Step 2) Convert headcounts → weighted tickets
-Tickets are computed using the fixed multipliers (WL1..WL4 → 1..4 tickets).
+### Step 2) Build a candidate pool
+Each candidate is represented explicitly in the simulation with:
+- a degree group (`Bachelors` or `Masters/PhD`)
+- a wage level (`WL1`-`WL4`)
+- a ticket count from the fixed multipliers above
 
-### Step 3) Round 1 (Regular cap)
-Compute per-ticket win probability:
+### Step 3) Simulate Round 1
+For each simulation run, the app repeatedly draws unique winners from the full candidate pool using ticket weights.
 
-`p1_ticket = min(1, cap_regular / total_tickets_r1)`
+A candidate with more tickets has a higher chance of being selected, but once selected:
+- the candidate wins at most once
+- all of that candidate's tickets are removed immediately
 
-(If `total_tickets_r1` is 0, the implementation guards and treats the probability as 1.)
+### Step 4) Simulate Round 2
+After Round 1 finishes, the app simulates the masters cap from the remaining Masters/PhD candidates only.
 
-Convert per-ticket probability to per-candidate probability by wage level (`k` tickets):
+### Step 5) Estimate annual win rates
+Across all simulation runs, the app counts how often candidates in each profile and wage-level bucket are selected. The annual win rate for a bucket is:
 
-- Independent model: `p1_candidate = 1 - (1 - p1_ticket) ** k`
-- Linear model:      `p1_candidate = min(1, k * p1_ticket)`
+`annual win rate = total wins in bucket / (bucket size * simulation runs)`
 
-Bachelors’ annual win probability is simply:
-
-`p_annual_bachelors = p1_candidate`
-
-### Step 4) Round 2 (Masters cap)
-Estimate Masters/PhD winners in Round 1 **in expectation**, then compute the rest:
-
-`expected_winners_r1 = count * p1_candidate`  
-`remaining = count - expected_winners_r1`
-
-Compute Round 2 per-ticket win probability among remaining Masters/PhD:
-
-`p2_ticket = min(1, cap_masters / total_tickets_r2)`
-
-Convert to per-candidate conditional probability by wage level (`k` tickets):
-
-- Independent model: `p2_cond = 1 - (1 - p2_ticket) ** k`
-- Linear model:      `p2_cond = min(1, k * p2_ticket)`
-
-Combine Masters/PhD annual probability across rounds:
-
-`p_annual_masters = p1_candidate + (1 - p1_candidate) * p2_cond`
-
-### Step 5) Multi-year probability
+### Step 6) Compute multi-year probability
 For `years` independent attempts:
 
 `p_multi = 1 - (1 - p_annual) ** years`
 
 ---
 
+## Accuracy and Tradeoffs
+
+This version is materially more accurate than the earlier closed-form approximations because it simulates unique candidates across both rounds.
+
+Tradeoffs:
+- More simulation runs produce more stable estimates.
+- Fewer simulation runs are faster but noisier.
+- Results are estimates, not exact closed-form probabilities.
+
+If you need reproducible results, keep the same random seed.
+
+---
+
 ## App Features
 
-- **Preset sync:** switching presets updates input widgets immediately.
-- **Preset locking:** preset scenarios are fixed; choose **Custom** option to edit inputs.
-- **Compare mode:** side-by-side comparison of two scenarios (A vs B), including deltas.
-- **CSV export:** download per-scenario results and comparison tables.
+- Candidate-level Monte Carlo simulation of the full two-round process.
+- Preset sync: switching presets updates input widgets immediately.
+- Preset locking: preset scenarios are fixed; choose `Custom` to edit inputs.
+- Compare mode: side-by-side comparison of two scenarios, including deltas.
+- CSV export: download per-scenario results and comparison tables.
+- Reproducibility controls through simulation count and random seed.
 
 ---
 
 ## Presets
 
 The app includes:
-- **Baseline (historical data):** a default configuration purely based on historical data from the tables in the DHS Dec. 29 rule. Notice that though Table 13 in the original document compares the H-1B lottery win rate under the new and old systems, it pools bachelor candidates with masters/PhD candidates, and does not calculate the multi-year win rate.
-- Additional presets for sensitivity analysis (e.g., lower total applicants, different wage-level mixes).
+- Baseline (historical data): a default configuration based on historical data from the DHS December 29, 2025 rule.
+- Additional presets for sensitivity analysis, such as lower total applicants or different wage-level mixes.
 
-Choose **Custom** option to modify parameters.
+Choose `Custom` to modify parameters.
 
 ---
+
+## Running the App
+
+Install dependencies from [requirements.txt](c:\Users\Hank_desktop\Dropbox\Visa\h1b-win-rate-calculator\requirements.txt), then run:
+
+```bash
+streamlit run app.py
+```
+
+---
+
 ## Reference
-DHS/USCIS final rule on H-1B weighted selection (Dec. 29, 2025).
+
+DHS/USCIS final rule on H-1B weighted selection (December 29, 2025).
 
 Official copy: https://public-inspection.federalregister.gov/2025-23853.pdf
-
-
