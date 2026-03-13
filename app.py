@@ -24,10 +24,13 @@ st.set_page_config(
 st.title("H-1B Weighted Lottery Win Rate Calculator")
 st.markdown(
     """
-This app estimates H-1B selection probabilities under the DHS/USCIS **weighted lottery** rule (Dec. 29, 2025).
+A Streamlit app that estimates H-1B lottery win rates under a 2-round selection process with weighted tickets **by wage level and degree type**.
+
+On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted selection** by wage level (WL1-WL4). This app estimates win rates under that system while preserving the existent two-round structure. **The final rule itself does not publish the degree-split or multi-year win-rate calculations**, so this app computes them.
+
 Weights are based on **wage levels** (WL1-WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**.
 
-The app now uses a **candidate-level Monte Carlo simulation** of the two-round process:
+The app now uses an **exact bucket-level Monte Carlo simulation** of the two-round process:
 - **Round 1 (Regular cap):** selects unique candidates from all applicants.
 - **Round 2 (Masters cap):** selects unique candidates from the remaining Masters/PhD applicants.
 
@@ -46,53 +49,16 @@ MULTIPLIERS = {1: 1, 2: 2, 3: 3, 4: 4}
 DEFAULT_SIMULATIONS = 200
 DEFAULT_SEED = 42
 
-
-class FenwickTree:
-    def __init__(self, values):
-        self.values = [float(v) for v in values]
-        self.size = len(self.values)
-        self.tree = [0.0] * (self.size + 1)
-        for index, value in enumerate(self.values, start=1):
-            self.tree[index] += value
-            parent = index + (index & -index)
-            if parent <= self.size:
-                self.tree[parent] += self.tree[index]
-
-    def total(self):
-        return self.prefix_sum(self.size - 1) if self.size else 0.0
-
-    def prefix_sum(self, index):
-        result = 0.0
-        index += 1
-        while index > 0:
-            result += self.tree[index]
-            index -= index & -index
-        return result
-
-    def add(self, index, delta):
-        index += 1
-        while index <= self.size:
-            self.tree[index] += delta
-            index += index & -index
-
-    def remove(self, index):
-        current = self.values[index]
-        if current <= 0:
-            return 0.0
-        self.values[index] = 0.0
-        self.add(index, -current)
-        return current
-
-    def find_by_cumulative_weight(self, target):
-        index = 0
-        bit = 1 << (self.size.bit_length() - 1)
-        while bit:
-            candidate = index + bit
-            if candidate <= self.size and self.tree[candidate] <= target:
-                target -= self.tree[candidate]
-                index = candidate
-            bit >>= 1
-        return index
+GROUP_DEFINITIONS = (
+    ("Bachelors", "WL1", False, MULTIPLIERS[1]),
+    ("Bachelors", "WL2", False, MULTIPLIERS[2]),
+    ("Bachelors", "WL3", False, MULTIPLIERS[3]),
+    ("Bachelors", "WL4", False, MULTIPLIERS[4]),
+    ("Masters/PhD", "WL1", True, MULTIPLIERS[1]),
+    ("Masters/PhD", "WL2", True, MULTIPLIERS[2]),
+    ("Masters/PhD", "WL3", True, MULTIPLIERS[3]),
+    ("Masters/PhD", "WL4", True, MULTIPLIERS[4]),
+)
 
 
 def allocate_counts(total, shares_by_level, levels=(1, 2, 3, 4), normalize=True):
@@ -122,82 +88,78 @@ def multi_year_prob(p_annual, years=3):
     return 1.0 - (1.0 - p_annual) ** years
 
 
-def build_candidate_pool(bachelors_counts, masters_counts):
-    candidate_group_ids = []
-    candidate_weights = []
-    candidate_is_master = []
+def build_bucket_pool(bachelors_counts, masters_counts):
     group_rows = []
     group_sizes = []
+    group_candidate_weights = []
+    masters_group_ids = []
 
-    for profile, counts, is_master in [
-        ("Bachelors", bachelors_counts, False),
-        ("Masters/PhD", masters_counts, True),
-    ]:
-        for level in sorted(MULTIPLIERS):
-            wage_label = f"WL{level}"
-            count = int(counts[level])
-            weight = MULTIPLIERS[level]
-            group_id = len(group_rows)
-            group_rows.append((profile, wage_label))
-            group_sizes.append(count)
-            candidate_group_ids.extend([group_id] * count)
-            candidate_weights.extend([weight] * count)
-            candidate_is_master.extend([is_master] * count)
-
-    masters_total = sum(1 for flag in candidate_is_master if flag)
-    masters_weights = [
-        candidate_weights[index] if candidate_is_master[index] else 0
-        for index in range(len(candidate_weights))
-    ]
+    for profile, wage_label, is_master, weight in GROUP_DEFINITIONS:
+        level = int(wage_label[-1])
+        counts = masters_counts if is_master else bachelors_counts
+        count = int(counts[level])
+        group_id = len(group_rows)
+        group_rows.append((profile, wage_label))
+        group_sizes.append(count)
+        group_candidate_weights.append(weight)
+        if is_master:
+            masters_group_ids.append(group_id)
 
     return {
         "group_rows": group_rows,
         "group_sizes": group_sizes,
-        "candidate_group_ids": candidate_group_ids,
-        "candidate_weights": candidate_weights,
-        "candidate_is_master": candidate_is_master,
-        "masters_weights": masters_weights,
-        "masters_total": masters_total,
+        "group_candidate_weights": group_candidate_weights,
+        "masters_group_ids": masters_group_ids,
     }
+
+
+def draw_group(bucket_ticket_weights, group_ids, total_weight, rng):
+    target = rng.random() * total_weight
+    cumulative = 0.0
+    for group_id in group_ids:
+        cumulative += bucket_ticket_weights[group_id]
+        if target < cumulative:
+            return group_id
+    return group_ids[-1]
 
 
 def run_single_simulation(pool, cap_regular, cap_masters, rng):
     wins_by_group = [0] * len(pool["group_rows"])
-    total_tree = FenwickTree(pool["candidate_weights"])
-    masters_tree = FenwickTree(pool["masters_weights"])
-    remaining_candidates = len(pool["candidate_weights"])
-    remaining_masters = pool["masters_total"]
+    remaining_counts = pool["group_sizes"][:]
+    bucket_ticket_weights = [
+        remaining_counts[group_id] * pool["group_candidate_weights"][group_id]
+        for group_id in range(len(pool["group_rows"]))
+    ]
+    total_weight = float(sum(bucket_ticket_weights))
+    masters_group_ids = pool["masters_group_ids"]
+    masters_group_id_set = set(masters_group_ids)
+    masters_total_weight = float(sum(bucket_ticket_weights[group_id] for group_id in masters_group_ids))
+    all_group_ids = list(range(len(pool["group_rows"])))
 
-    for _ in range(min(int(cap_regular), remaining_candidates)):
-        total_weight = total_tree.total()
+    for _ in range(min(int(cap_regular), sum(remaining_counts))):
         if total_weight <= 0:
             break
 
-        target = rng.random() * total_weight
-        candidate_index = total_tree.find_by_cumulative_weight(target)
-        removed_weight = total_tree.remove(candidate_index)
-        if removed_weight <= 0:
-            continue
+        group_id = draw_group(bucket_ticket_weights, all_group_ids, total_weight, rng)
+        candidate_weight = pool["group_candidate_weights"][group_id]
+        wins_by_group[group_id] += 1
+        remaining_counts[group_id] -= 1
+        bucket_ticket_weights[group_id] -= candidate_weight
+        total_weight -= candidate_weight
+        if group_id in masters_group_id_set:
+            masters_total_weight -= candidate_weight
 
-        wins_by_group[pool["candidate_group_ids"][candidate_index]] += 1
-        if pool["candidate_is_master"][candidate_index]:
-            masters_tree.remove(candidate_index)
-            remaining_masters -= 1
-
-    for _ in range(min(int(cap_masters), remaining_masters)):
-        total_weight = masters_tree.total()
-        if total_weight <= 0:
+    for _ in range(min(int(cap_masters), sum(remaining_counts[group_id] for group_id in masters_group_ids))):
+        if masters_total_weight <= 0:
             break
 
-        target = rng.random() * total_weight
-        candidate_index = masters_tree.find_by_cumulative_weight(target)
-        removed_weight = masters_tree.remove(candidate_index)
-        if removed_weight <= 0:
-            continue
-
-        total_tree.remove(candidate_index)
-        wins_by_group[pool["candidate_group_ids"][candidate_index]] += 1
-        remaining_masters -= 1
+        group_id = draw_group(bucket_ticket_weights, masters_group_ids, masters_total_weight, rng)
+        candidate_weight = pool["group_candidate_weights"][group_id]
+        wins_by_group[group_id] += 1
+        remaining_counts[group_id] -= 1
+        bucket_ticket_weights[group_id] -= candidate_weight
+        total_weight -= candidate_weight
+        masters_total_weight -= candidate_weight
 
     return wins_by_group
 
@@ -206,7 +168,7 @@ def run_single_simulation(pool, cap_regular, cap_masters, rng):
 def simulate_annual_rates(bachelors_counts_items, masters_counts_items, cap_regular, cap_masters, simulations, seed):
     bachelors_counts = {level: int(count) for level, count in bachelors_counts_items}
     masters_counts = {level: int(count) for level, count in masters_counts_items}
-    pool = build_candidate_pool(bachelors_counts, masters_counts)
+    pool = build_bucket_pool(bachelors_counts, masters_counts)
     rng = random.Random(int(seed))
     total_wins = [0] * len(pool["group_rows"])
 
@@ -275,7 +237,7 @@ def h1b_weighted_win_rates(
             "years": years,
             "simulations": simulations,
             "seed": seed,
-            "method": "candidate_level_simulation",
+            "method": "exact_bucket_level_simulation",
             "wage_shares_bachelors": wage_shares_bachelors,
             "wage_shares_masters": wage_shares_masters,
             "multipliers_fixed": MULTIPLIERS,
@@ -442,7 +404,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         wage_shares_masters = {1: m1, 2: m2, 3: m3, 4: m4}
 
         try:
-            with st.spinner("Running candidate-level simulation..."):
+            with st.spinner("Running exact bucket-level simulation..."):
                 out = h1b_weighted_win_rates(
                     total_unique=total_unique,
                     cap_regular=cap_regular,
@@ -462,7 +424,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         view_df = format_percent_df(raw_df, years=years)
 
         st.caption(
-            f"Method: candidate-level Monte Carlo simulation | Runs: {int(simulations):,} | Seed: {int(seed)}"
+            f"Method: exact bucket-level Monte Carlo simulation | Runs: {int(simulations):,} | Seed: {int(seed)}"
         )
         st.markdown("#### Results")
         st.dataframe(view_df, use_container_width=True)
