@@ -40,6 +40,7 @@ The app reports **annual** and **multi-year win rates** separately for Bachelors
 **Rule text:** https://public-inspection.federalregister.gov/2025-23853.pdf
 """
 )
+st.caption("Need help with the inputs? Open the `Parameter Guide` tab.")
 
 # ----------------------------
 # LOGIC & CALCULATOR
@@ -312,6 +313,43 @@ def format_percent_df(df, years):
     )
 
 
+def render_parameter_guide():
+    st.markdown(
+        """
+### Parameter Guide
+
+These definitions match the documentation in the README.
+
+#### Ticket multipliers
+- `WL1`: 1 ticket
+- `WL2`: 2 tickets
+- `WL3`: 3 tickets
+- `WL4`: 4 tickets
+
+#### Inputs
+- `Total applicants (total_unique)`: total number of unique candidates in the lottery.
+- `Round 1 Regular cap (cap_regular)`: number of selections in Round 1.
+- `Round 2 cap (cap_masters)`: number of selections in Round 2 among remaining Masters/PhD candidates.
+- `Bachelor share (bachelor_share)`: fraction of applicants that are Bachelors. Masters/PhD share is `1 - bachelor_share`.
+- `Wage-level shares (wage_b, wage_m)`: wage-level composition within each degree group.
+- `Years (years)`: number of attempts used for the multi-year probability.
+- `Simulation runs (simulations)`: number of Monte Carlo trials used to estimate annual win rates.
+- `Random seed (seed)`: seed for reproducible simulation results.
+
+#### Notes
+- Wage shares within each degree group are normalized if they do not sum to 1.
+- If a degree group's wage shares sum to 0, the app raises an error instead of guessing a fallback allocation.
+
+#### Probability summary
+- Within each degree group, wage shares are converted into integer headcounts.
+- The app simulates the lottery using 8 homogeneous buckets: `Bachelors-WL1` through `Bachelors-WL4`, and `Masters/PhD-WL1` through `Masters/PhD-WL4`.
+- If bucket `b` has `n_b` remaining candidates and each candidate has `w_b` tickets, then that bucket contributes `T_b = n_b * w_b`.
+- The probability that the next Round 1 winner comes from bucket `b` is `P(b) = T_b / sum(T_j)`.
+- For `years` independent attempts, the multi-year probability is `p_multi = 1 - (1 - p_annual) ** years`.
+"""
+    )
+
+
 def _apply_defaults_to_session(key_prefix, defaults):
     st.session_state[f"{key_prefix}_total_unique"] = int(defaults["total_unique"])
     st.session_state[f"{key_prefix}_cap_regular"] = int(defaults["cap_regular"])
@@ -560,30 +598,36 @@ PRESETS = {
     },
 }
 
-mode = st.radio("Mode", ["Single scenario", "Compare two scenarios"], horizontal=True)
+calculator_tab, guide_tab = st.tabs(["Calculator", "Parameter Guide"])
 
-if mode == "Single scenario":
-    scenario_panel("S", "Scenario", PRESETS)
-else:
-    col_a, col_b = st.columns(2)
-    out_a, raw_a = scenario_panel("A", "Scenario A", PRESETS, container=col_a)
-    out_b, raw_b = scenario_panel("B", "Scenario B", PRESETS, container=col_b)
+with calculator_tab:
+    mode = st.radio("Mode", ["Single scenario", "Compare two scenarios"], horizontal=True)
 
-    st.markdown("---")
-    st.subheader("Comparison (Scenario B - Scenario A)")
-
-    if out_a is None or out_b is None or raw_a is None or raw_b is None:
-        st.info("Run both scenarios to view the comparison table.")
+    if mode == "Single scenario":
+        scenario_panel("S", "Scenario", PRESETS)
     else:
-        years_a = int(out_a["inputs"]["years"])
-        years_b = int(out_b["inputs"]["years"])
-        comparison_df = compare_two(raw_a, raw_b, years_a=years_a, years_b=years_b)
-        st.dataframe(comparison_df, use_container_width=True)
+        col_a, col_b = st.columns(2)
+        out_a, raw_a = scenario_panel("A", "Scenario A", PRESETS, container=col_a)
+        out_b, raw_b = scenario_panel("B", "Scenario B", PRESETS, container=col_b)
 
-        st.download_button(
-            "Download comparison as CSV",
-            comparison_df.to_csv(index=False).encode("utf-8"),
-            file_name="h1b_scenario_comparison.csv",
-            mime="text/csv",
-            key="cmp_download",
-        )
+        st.markdown("---")
+        st.subheader("Comparison (Scenario B - Scenario A)")
+
+        if out_a is None or out_b is None or raw_a is None or raw_b is None:
+            st.info("Run both scenarios to view the comparison table.")
+        else:
+            years_a = int(out_a["inputs"]["years"])
+            years_b = int(out_b["inputs"]["years"])
+            comparison_df = compare_two(raw_a, raw_b, years_a=years_a, years_b=years_b)
+            st.dataframe(comparison_df, use_container_width=True)
+
+            st.download_button(
+                "Download comparison as CSV",
+                comparison_df.to_csv(index=False).encode("utf-8"),
+                file_name="h1b_scenario_comparison.csv",
+                mime="text/csv",
+                key="cmp_download",
+            )
+
+with guide_tab:
+    render_parameter_guide()
