@@ -116,18 +116,6 @@ The app includes:
 
 Choose `Custom` to modify parameters.
 
----
-
-## Running the App
-
-Install dependencies from [requirements.txt](c:\Users\Hank_desktop\Dropbox\Visa\h1b-win-rate-calculator\requirements.txt), then run:
-
-```bash
-streamlit run app.py
-```
-
----
-
 ## Reference
 
 DHS/USCIS final rule on H-1B weighted selection (December 29, 2025).

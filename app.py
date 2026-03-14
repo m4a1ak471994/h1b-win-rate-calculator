@@ -92,71 +92,108 @@ def build_bucket_pool(bachelors_counts, masters_counts):
     group_rows = []
     group_sizes = []
     group_candidate_weights = []
-    masters_group_ids = []
 
     for profile, wage_label, is_master, weight in GROUP_DEFINITIONS:
         level = int(wage_label[-1])
         counts = masters_counts if is_master else bachelors_counts
         count = int(counts[level])
-        group_id = len(group_rows)
         group_rows.append((profile, wage_label))
         group_sizes.append(count)
         group_candidate_weights.append(weight)
-        if is_master:
-            masters_group_ids.append(group_id)
+
+    group_rows = tuple(group_rows)
+    group_sizes = tuple(group_sizes)
+    group_candidate_weights = tuple(group_candidate_weights)
+    initial_bucket_ticket_weights = tuple(
+        group_sizes[group_id] * group_candidate_weights[group_id]
+        for group_id in range(len(group_rows))
+    )
 
     return {
         "group_rows": group_rows,
         "group_sizes": group_sizes,
         "group_candidate_weights": group_candidate_weights,
-        "masters_group_ids": masters_group_ids,
+        "initial_bucket_ticket_weights": initial_bucket_ticket_weights,
+        "total_candidates": sum(group_sizes),
+        "total_masters": sum(group_sizes[4:]),
+        "initial_total_weight": sum(initial_bucket_ticket_weights),
+        "initial_masters_total_weight": sum(initial_bucket_ticket_weights[4:]),
     }
 
 
-def draw_group(bucket_ticket_weights, group_ids, total_weight, rng):
-    target = rng.random() * total_weight
-    cumulative = 0.0
-    for group_id in group_ids:
-        cumulative += bucket_ticket_weights[group_id]
-        if target < cumulative:
-            return group_id
-    return group_ids[-1]
+def run_single_simulation(pool, cap_regular, cap_masters, rng, accumulated_wins=None):
+    group_candidate_weights = pool["group_candidate_weights"]
+    bucket_ticket_weights = list(pool["initial_bucket_ticket_weights"])
+    total_weight = pool["initial_total_weight"]
+    masters_total_weight = pool["initial_masters_total_weight"]
 
+    wins_by_group = accumulated_wins if accumulated_wins is not None else [0] * len(pool["group_rows"])
+    regular_draws = min(int(cap_regular), pool["total_candidates"])
+    masters_draws = min(int(cap_masters), pool["total_masters"])
 
-def run_single_simulation(pool, cap_regular, cap_masters, rng):
-    wins_by_group = [0] * len(pool["group_rows"])
-    remaining_counts = pool["group_sizes"][:]
-    bucket_ticket_weights = [
-        remaining_counts[group_id] * pool["group_candidate_weights"][group_id]
-        for group_id in range(len(pool["group_rows"]))
-    ]
-    total_weight = float(sum(bucket_ticket_weights))
-    masters_group_ids = pool["masters_group_ids"]
-    masters_group_id_set = set(masters_group_ids)
-    masters_total_weight = float(sum(bucket_ticket_weights[group_id] for group_id in masters_group_ids))
-    all_group_ids = list(range(len(pool["group_rows"])))
-
-    for _ in range(min(int(cap_regular), sum(remaining_counts))):
+    for _ in range(regular_draws):
         if total_weight <= 0:
             break
 
-        group_id = draw_group(bucket_ticket_weights, all_group_ids, total_weight, rng)
-        candidate_weight = pool["group_candidate_weights"][group_id]
+        target = rng.random() * total_weight
+        cumulative = bucket_ticket_weights[0]
+        if target < cumulative:
+            group_id = 0
+        else:
+            cumulative += bucket_ticket_weights[1]
+            if target < cumulative:
+                group_id = 1
+            else:
+                cumulative += bucket_ticket_weights[2]
+                if target < cumulative:
+                    group_id = 2
+                else:
+                    cumulative += bucket_ticket_weights[3]
+                    if target < cumulative:
+                        group_id = 3
+                    else:
+                        cumulative += bucket_ticket_weights[4]
+                        if target < cumulative:
+                            group_id = 4
+                        else:
+                            cumulative += bucket_ticket_weights[5]
+                            if target < cumulative:
+                                group_id = 5
+                            else:
+                                cumulative += bucket_ticket_weights[6]
+                                if target < cumulative:
+                                    group_id = 6
+                                else:
+                                    group_id = 7
+
+        candidate_weight = group_candidate_weights[group_id]
         wins_by_group[group_id] += 1
-        remaining_counts[group_id] -= 1
         bucket_ticket_weights[group_id] -= candidate_weight
         total_weight -= candidate_weight
-        if group_id in masters_group_id_set:
+        if group_id >= 4:
             masters_total_weight -= candidate_weight
 
-    for _ in range(min(int(cap_masters), sum(remaining_counts[group_id] for group_id in masters_group_ids))):
+    for _ in range(masters_draws):
         if masters_total_weight <= 0:
             break
 
-        group_id = draw_group(bucket_ticket_weights, masters_group_ids, masters_total_weight, rng)
-        candidate_weight = pool["group_candidate_weights"][group_id]
+        target = rng.random() * masters_total_weight
+        cumulative = bucket_ticket_weights[4]
+        if target < cumulative:
+            group_id = 4
+        else:
+            cumulative += bucket_ticket_weights[5]
+            if target < cumulative:
+                group_id = 5
+            else:
+                cumulative += bucket_ticket_weights[6]
+                if target < cumulative:
+                    group_id = 6
+                else:
+                    group_id = 7
+
+        candidate_weight = group_candidate_weights[group_id]
         wins_by_group[group_id] += 1
-        remaining_counts[group_id] -= 1
         bucket_ticket_weights[group_id] -= candidate_weight
         total_weight -= candidate_weight
         masters_total_weight -= candidate_weight
@@ -166,16 +203,15 @@ def run_single_simulation(pool, cap_regular, cap_masters, rng):
 
 @st.cache_data(show_spinner=False)
 def simulate_annual_rates(bachelors_counts_items, masters_counts_items, cap_regular, cap_masters, simulations, seed):
+    simulations = int(simulations)
     bachelors_counts = {level: int(count) for level, count in bachelors_counts_items}
     masters_counts = {level: int(count) for level, count in masters_counts_items}
     pool = build_bucket_pool(bachelors_counts, masters_counts)
     rng = random.Random(int(seed))
     total_wins = [0] * len(pool["group_rows"])
 
-    for _ in range(int(simulations)):
-        trial_wins = run_single_simulation(pool, cap_regular, cap_masters, rng)
-        for group_id, wins in enumerate(trial_wins):
-            total_wins[group_id] += wins
+    for _ in range(simulations):
+        run_single_simulation(pool, cap_regular, cap_masters, rng, accumulated_wins=total_wins)
 
     annual_rates = {"Bachelors": {}, "Masters/PhD": {}}
     for group_id, (profile, wage_label) in enumerate(pool["group_rows"]):
@@ -183,7 +219,7 @@ def simulate_annual_rates(bachelors_counts_items, masters_counts_items, cap_regu
         if group_size <= 0:
             annual_probability = 0.0
         else:
-            annual_probability = total_wins[group_id] / (group_size * int(simulations))
+            annual_probability = total_wins[group_id] / (group_size * simulations)
         annual_rates[profile][wage_label] = annual_probability
 
     return annual_rates
@@ -307,6 +343,9 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         preset_options = ["Custom"] + list(preset_dict.keys())
         preset_key = f"{key_prefix}_preset"
         default_preset = next(iter(preset_dict))
+        result_key = f"{key_prefix}_last_out"
+        raw_key = f"{key_prefix}_last_raw_df"
+        error_key = f"{key_prefix}_last_error"
 
         if (preset_key not in st.session_state) or (st.session_state[preset_key] not in preset_options):
             st.session_state[preset_key] = default_preset
@@ -330,101 +369,123 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
             init_name = preset_name if preset_name in preset_dict else default_preset
             _apply_defaults_to_session(key_prefix, preset_dict[init_name])
 
-        col_a, col_b = st.columns(2)
-        with col_a:
-            total_unique = st.number_input(
-                "Total applicants",
-                min_value=0,
-                step=1000,
-                key=f"{key_prefix}_total_unique",
-                disabled=locked,
-            )
-            cap_regular = st.number_input(
-                "Round 1 Regular cap",
-                min_value=0,
-                step=1000,
-                key=f"{key_prefix}_cap_regular",
-                disabled=locked,
-            )
-            bachelor_share = st.slider(
-                "Bachelor share",
-                0.0,
-                1.0,
-                step=0.001,
-                key=f"{key_prefix}_bachelor_share",
-                disabled=locked,
-            )
-            years = st.number_input(
-                "Years",
-                min_value=1,
-                step=1,
-                key=f"{key_prefix}_years",
-                disabled=locked,
-            )
+        st.caption("Inputs below update only when you click Run.")
 
-        with col_b:
-            cap_masters = st.number_input(
-                "Round 2 cap (MS/PhD)",
-                min_value=0,
-                step=1000,
-                key=f"{key_prefix}_cap_masters",
-                disabled=locked,
-            )
-            simulations = st.number_input(
-                "Simulation runs",
-                min_value=1,
-                step=100,
-                key=f"{key_prefix}_simulations",
-            )
-            seed = st.number_input(
-                "Random seed",
-                min_value=0,
-                step=1,
-                key=f"{key_prefix}_seed",
-            )
-            st.caption("Higher simulation counts improve stability but can take much longer.")
+        with st.form(key=f"{key_prefix}_form"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                total_unique = st.number_input(
+                    "Total applicants",
+                    min_value=0,
+                    step=1000,
+                    key=f"{key_prefix}_total_unique",
+                    disabled=locked,
+                )
+                cap_regular = st.number_input(
+                    "Round 1 Regular cap",
+                    min_value=0,
+                    step=1000,
+                    key=f"{key_prefix}_cap_regular",
+                    disabled=locked,
+                )
+                bachelor_share = st.slider(
+                    "Bachelor share",
+                    0.0,
+                    1.0,
+                    step=0.001,
+                    key=f"{key_prefix}_bachelor_share",
+                    disabled=locked,
+                )
+                years = st.number_input(
+                    "Years",
+                    min_value=1,
+                    step=1,
+                    key=f"{key_prefix}_years",
+                    disabled=locked,
+                )
 
-        st.markdown("**Wage-level shares** within each applicant degree group")
-        col_left, col_right = st.columns(2)
-        with col_left:
-            st.markdown("**Bachelors**")
-            b1 = st.number_input("BA WL1", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b1", disabled=locked)
-            b2 = st.number_input("BA WL2", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b2", disabled=locked)
-            b3 = st.number_input("BA WL3", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b3", disabled=locked)
-            b4 = st.number_input("BA WL4", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b4", disabled=locked)
+            with col_b:
+                cap_masters = st.number_input(
+                    "Round 2 cap (MS/PhD)",
+                    min_value=0,
+                    step=1000,
+                    key=f"{key_prefix}_cap_masters",
+                    disabled=locked,
+                )
+                simulations = st.number_input(
+                    "Simulation runs",
+                    min_value=1,
+                    step=100,
+                    key=f"{key_prefix}_simulations",
+                )
+                seed = st.number_input(
+                    "Random seed",
+                    min_value=0,
+                    step=1,
+                    key=f"{key_prefix}_seed",
+                )
+                st.caption("Higher simulation counts improve stability but can take much longer.")
 
-        with col_right:
-            st.markdown("**Masters/PhD**")
-            m1 = st.number_input("MS WL1", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m1", disabled=locked)
-            m2 = st.number_input("MS WL2", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m2", disabled=locked)
-            m3 = st.number_input("MS WL3", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m3", disabled=locked)
-            m4 = st.number_input("MS WL4", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m4", disabled=locked)
+            st.markdown("**Wage-level shares** within each applicant degree group")
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.markdown("**Bachelors**")
+                b1 = st.number_input("BA WL1", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b1", disabled=locked)
+                b2 = st.number_input("BA WL2", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b2", disabled=locked)
+                b3 = st.number_input("BA WL3", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b3", disabled=locked)
+                b4 = st.number_input("BA WL4", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_b4", disabled=locked)
+
+            with col_right:
+                st.markdown("**Masters/PhD**")
+                m1 = st.number_input("MS WL1", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m1", disabled=locked)
+                m2 = st.number_input("MS WL2", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m2", disabled=locked)
+                m3 = st.number_input("MS WL3", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m3", disabled=locked)
+                m4 = st.number_input("MS WL4", min_value=0.0, step=0.01, format="%.4f", key=f"{key_prefix}_m4", disabled=locked)
+
+            run_label = f"Run {title}" if title else "Run Scenario"
+            run_clicked = st.form_submit_button(run_label, use_container_width=True)
 
         wage_shares_bachelors = {1: b1, 2: b2, 3: b3, 4: b4}
         wage_shares_masters = {1: m1, 2: m2, 3: m3, 4: m4}
 
-        try:
-            with st.spinner("Running exact bucket-level simulation..."):
-                out = h1b_weighted_win_rates(
-                    total_unique=total_unique,
-                    cap_regular=cap_regular,
-                    cap_masters=cap_masters,
-                    bachelor_share=bachelor_share,
-                    wage_shares_bachelors=wage_shares_bachelors,
-                    wage_shares_masters=wage_shares_masters,
-                    years=years,
-                    simulations=simulations,
-                    seed=seed,
-                )
-        except ValueError as exc:
-            st.error(str(exc))
-            st.stop()
+        if run_clicked:
+            try:
+                with st.spinner("Running exact bucket-level simulation..."):
+                    out = h1b_weighted_win_rates(
+                        total_unique=total_unique,
+                        cap_regular=cap_regular,
+                        cap_masters=cap_masters,
+                        bachelor_share=bachelor_share,
+                        wage_shares_bachelors=wage_shares_bachelors,
+                        wage_shares_masters=wage_shares_masters,
+                        years=years,
+                        simulations=simulations,
+                        seed=seed,
+                    )
+                raw_df = build_raw_results_df(out, years=years)
+                st.session_state[result_key] = out
+                st.session_state[raw_key] = raw_df
+                st.session_state.pop(error_key, None)
+            except ValueError as exc:
+                st.session_state[error_key] = str(exc)
+                st.session_state.pop(result_key, None)
+                st.session_state.pop(raw_key, None)
 
-        raw_df = build_raw_results_df(out, years=years)
-        view_df = format_percent_df(raw_df, years=years)
+        error_message = st.session_state.get(error_key)
+        if error_message:
+            st.error(error_message)
+
+        out = st.session_state.get(result_key)
+        raw_df = st.session_state.get(raw_key)
+        if out is None or raw_df is None:
+            st.info("Adjust the inputs above, then click Run to generate results.")
+            return None, None
+
+        result_years = int(out["inputs"]["years"])
+        view_df = format_percent_df(raw_df, years=result_years)
 
         st.caption(
-            f"Method: exact bucket-level Monte Carlo simulation | Runs: {int(simulations):,} | Seed: {int(seed)}"
+            f"Showing the last completed run | Method: exact bucket-level Monte Carlo simulation | Runs: {int(out['inputs']['simulations']):,} | Seed: {int(out['inputs']['seed'])}"
         )
         st.markdown("#### Results")
         st.dataframe(view_df, use_container_width=True)
@@ -508,18 +569,21 @@ else:
     out_a, raw_a = scenario_panel("A", "Scenario A", PRESETS, container=col_a)
     out_b, raw_b = scenario_panel("B", "Scenario B", PRESETS, container=col_b)
 
-    years_a = int(out_a["inputs"]["years"])
-    years_b = int(out_b["inputs"]["years"])
-
     st.markdown("---")
     st.subheader("Comparison (Scenario B - Scenario A)")
-    comparison_df = compare_two(raw_a, raw_b, years_a=years_a, years_b=years_b)
-    st.dataframe(comparison_df, use_container_width=True)
 
-    st.download_button(
-        "Download comparison as CSV",
-        comparison_df.to_csv(index=False).encode("utf-8"),
-        file_name="h1b_scenario_comparison.csv",
-        mime="text/csv",
-        key="cmp_download",
-    )
+    if out_a is None or out_b is None or raw_a is None or raw_b is None:
+        st.info("Run both scenarios to view the comparison table.")
+    else:
+        years_a = int(out_a["inputs"]["years"])
+        years_b = int(out_b["inputs"]["years"])
+        comparison_df = compare_two(raw_a, raw_b, years_a=years_a, years_b=years_b)
+        st.dataframe(comparison_df, use_container_width=True)
+
+        st.download_button(
+            "Download comparison as CSV",
+            comparison_df.to_csv(index=False).encode("utf-8"),
+            file_name="h1b_scenario_comparison.csv",
+            mime="text/csv",
+            key="cmp_download",
+        )
