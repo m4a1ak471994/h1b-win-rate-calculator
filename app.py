@@ -32,7 +32,7 @@ Weights are based on **wage levels** (WL1-WL4): **WL1 = 1 ticket, WL2 = 2, WL3 =
 
 The app now uses a **Monte Carlo simulation** of the two-round process:
 - **Round 1 (Regular cap):** selects unique candidates from all applicants.
-- **Round 2 (Masters cap):** selects unique candidates from the remaining Masters/PhD applicants.
+- **Round 2 (Masters cap):** selects unique candidates from the remaining Masters/PhD applicants who did not get selected in Round 1.
 
 Once a candidate is selected in any round, all of that candidate's tickets are removed from later draws.
 The app reports **annual** and **multi-year win rates** separately for Bachelors and Masters/PhD.
