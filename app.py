@@ -478,7 +478,7 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         out = st.session_state.get(result_key)
         raw_df = st.session_state.get(raw_key)
         if out is None or raw_df is None:
-            st.info("Adjust the inputs above, then click Run to generate results.")
+            st.info("Click Run to generate results.")
             return None, None
 
         result_years = int(out["inputs"]["years"])
