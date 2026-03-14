@@ -574,7 +574,7 @@ PRESETS = {
         "simulations": DEFAULT_SIMULATIONS,
         "seed": DEFAULT_SEED,
     },
-    "Lower total volume, bachelor share, and WL1": {
+    "Lower total volume, bachelor share, and WL1 share": {
         "total_unique": 250_000,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
