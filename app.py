@@ -30,7 +30,7 @@ On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted se
 
 Weights are based on **wage levels** (WL1-WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**.
 
-The app now uses an **exact bucket-level Monte Carlo simulation** of the two-round process:
+The app now uses a ** Monte Carlo simulation** of the two-round process:
 - **Round 1 (Regular cap):** selects unique candidates from all applicants.
 - **Round 2 (Masters cap):** selects unique candidates from the remaining Masters/PhD applicants.
 
