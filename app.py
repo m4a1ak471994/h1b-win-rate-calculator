@@ -578,7 +578,7 @@ PRESETS = {
         "total_unique": 250_000,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
-        "bachelor_share": 0.60,
+        "bachelor_share": 0.55,
         "wage_b": {1: 0.14, 2: 0.67, 3: 0.13, 4: 0.06},
         "wage_m": {1: 0.30, 2: 0.56, 3: 0.11, 4: 0.03},
         "years": 3,
