@@ -373,6 +373,13 @@ def _apply_defaults_to_session(key_prefix, defaults):
     st.session_state[f"{key_prefix}_m4"] = float(defaults["wage_m"][4])
 
 
+_CUSTOM_PARAM_KEYS = [
+    "total_unique", "cap_regular", "cap_masters", "bachelor_share",
+    "years", "simulations", "seed",
+    "b1", "b2", "b3", "b4", "m1", "m2", "m3", "m4",
+]
+
+
 def scenario_panel(key_prefix, title, preset_dict, container=None):
     if container is None:
         container = st.container()
@@ -394,6 +401,11 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
             chosen = st.session_state[preset_key]
             if chosen in preset_dict:
                 _apply_defaults_to_session(key_prefix, preset_dict[chosen])
+                st.session_state[f"{key_prefix}_should_auto_run"] = True
+            else:  # switching to Custom — snapshot current values
+                st.session_state[f"{key_prefix}_custom_snapshot"] = {
+                    k: st.session_state.get(f"{key_prefix}_{k}") for k in _CUSTOM_PARAM_KEYS
+                }
 
         st.selectbox(
             "Scenario preset",
@@ -409,7 +421,10 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
             init_name = preset_name if preset_name in preset_dict else default_preset
             _apply_defaults_to_session(key_prefix, preset_dict[init_name])
 
-        st.caption("Inputs below update only when you click Run.")
+        if locked:
+            st.caption("Preset scenarios run automatically when selected.")
+        else:
+            st.caption("Edit inputs below, then click Run to update results.")
 
         with st.form(key=f"{key_prefix}_form"):
             col_a, col_b = st.columns(2)
@@ -488,7 +503,9 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
         wage_shares_bachelors = {1: b1, 2: b2, 3: b3, 4: b4}
         wage_shares_masters = {1: m1, 2: m2, 3: m3, 4: m4}
 
-        if run_clicked:
+        should_auto_run = st.session_state.pop(f"{key_prefix}_should_auto_run", False)
+
+        if run_clicked or should_auto_run:
             try:
                 with st.spinner("Running exact bucket-level simulation..."):
                     out = h1b_weighted_win_rates(
@@ -506,10 +523,26 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
                 st.session_state[result_key] = out
                 st.session_state[raw_key] = raw_df
                 st.session_state.pop(error_key, None)
+                # After a successful run, update snapshot so warning clears
+                if not locked:
+                    st.session_state[f"{key_prefix}_custom_snapshot"] = {
+                        k: st.session_state.get(f"{key_prefix}_{k}") for k in _CUSTOM_PARAM_KEYS
+                    }
             except ValueError as exc:
                 st.session_state[error_key] = str(exc)
                 st.session_state.pop(result_key, None)
                 st.session_state.pop(raw_key, None)
+
+        # For Custom preset, warn if any param has changed since the last run
+        if not locked:
+            snapshot = st.session_state.get(f"{key_prefix}_custom_snapshot")
+            if snapshot:
+                params_changed = any(
+                    st.session_state.get(f"{key_prefix}_{k}") != snapshot.get(k)
+                    for k in _CUSTOM_PARAM_KEYS
+                )
+                if params_changed:
+                    st.warning("Parameters have changed. Click **Run Scenario** again to see updated results.")
 
         error_message = st.session_state.get(error_key)
         if error_message:
