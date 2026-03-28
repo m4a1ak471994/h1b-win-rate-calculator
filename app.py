@@ -295,24 +295,28 @@ def build_raw_results_df(out, years):
     rows = []
     for profile in ["Bachelors", "Masters/PhD"]:
         for wage_level in ["WL1", "WL2", "WL3", "WL4"]:
-            rows.append(
-                {
-                    "Profile": profile,
-                    "Wage Level": wage_level,
-                    "Annual": float(annual[profile][wage_level]),
-                    f"{years}-Year": float(multi[profile][wage_level]),
-                }
-            )
+            p_annual = float(annual[profile][wage_level])
+            row = {
+                "Profile": profile,
+                "Wage Level": wage_level,
+                "Annual": p_annual,
+                "2-Year": multi_year_prob(p_annual, years=2),
+            }
+            if years != 2:
+                row[f"{years}-Year"] = float(multi[profile][wage_level])
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
 def format_percent_df(df, years):
     formatted = df.copy()
     formatted["Annual"] = (formatted["Annual"] * 100).round(2).astype(str) + "%"
-    formatted[f"{years}-Year"] = (formatted[f"{years}-Year"] * 100).round(2).astype(str) + "%"
-    return formatted.rename(
-        columns={"Annual": "Annual Win Rate", f"{years}-Year": f"{years}-Year Win Rate"}
-    )
+    formatted["2-Year"] = (formatted["2-Year"] * 100).round(2).astype(str) + "%"
+    cols_rename = {"Annual": "Annual Win Rate", "2-Year": "2-Year Win Rate"}
+    if years != 2:
+        formatted[f"{years}-Year"] = (formatted[f"{years}-Year"] * 100).round(2).astype(str) + "%"
+        cols_rename[f"{years}-Year"] = f"{years}-Year Win Rate"
+    return formatted.rename(columns=cols_rename)
 
 
 def render_parameter_guide():
@@ -575,21 +579,29 @@ def scenario_panel(key_prefix, title, preset_dict, container=None):
 
 def compare_two(raw_a, raw_b, years_a, years_b):
     key_cols = ["Profile", "Wage Level"]
-    df_a = raw_a.copy().rename(columns={"Annual": "Annual_A", f"{years_a}-Year": f"{years_a}-Year_A"})
-    df_b = raw_b.copy().rename(columns={"Annual": "Annual_B", f"{years_b}-Year": f"{years_b}-Year_B"})
+    rename_a = {"Annual": "Annual_A", "2-Year": "2-Year_A", f"{years_a}-Year": f"{years_a}-Year_A"}
+    rename_b = {"Annual": "Annual_B", "2-Year": "2-Year_B", f"{years_b}-Year": f"{years_b}-Year_B"}
+    df_a = raw_a.copy().rename(columns=rename_a)
+    df_b = raw_b.copy().rename(columns=rename_b)
     merged = df_a.merge(df_b, on=key_cols, how="inner")
 
     merged["Annual_diff_pp"] = (merged["Annual_B"] - merged["Annual_A"]) * 100
-    if years_a == years_b:
+    merged["2-Year_diff_pp"] = (merged["2-Year_B"] - merged["2-Year_A"]) * 100
+    if years_a == years_b and years_a != 2:
         merged[f"{years_a}-Year_diff_pp"] = (merged[f"{years_a}-Year_B"] - merged[f"{years_a}-Year_A"]) * 100
 
     display = merged[key_cols].copy()
     display["Annual A"] = (merged["Annual_A"] * 100).round(2).astype(str) + "%"
     display["Annual B"] = (merged["Annual_B"] * 100).round(2).astype(str) + "%"
     display["Annual (B - A)"] = merged["Annual_diff_pp"].round(2).astype(str) + " pp"
-    display[f"{years_a}-Year A"] = (merged[f"{years_a}-Year_A"] * 100).round(2).astype(str) + "%"
-    display[f"{years_b}-Year B"] = (merged[f"{years_b}-Year_B"] * 100).round(2).astype(str) + "%"
-    if years_a == years_b:
+    display["2-Year A"] = (merged["2-Year_A"] * 100).round(2).astype(str) + "%"
+    display["2-Year B"] = (merged["2-Year_B"] * 100).round(2).astype(str) + "%"
+    display["2-Year (B - A)"] = merged["2-Year_diff_pp"].round(2).astype(str) + " pp"
+    if years_a != 2:
+        display[f"{years_a}-Year A"] = (merged[f"{years_a}-Year_A"] * 100).round(2).astype(str) + "%"
+    if years_b != 2:
+        display[f"{years_b}-Year B"] = (merged[f"{years_b}-Year_B"] * 100).round(2).astype(str) + "%"
+    if years_a == years_b and years_a != 2:
         display[f"{years_a}-Year (B - A)"] = merged[f"{years_a}-Year_diff_pp"].round(2).astype(str) + " pp"
     return display
 
