@@ -621,13 +621,13 @@ PRESETS = {
         "simulations": DEFAULT_SIMULATIONS,
         "seed": DEFAULT_SEED,
     },
-    "Lower total volume, bachelor share, and WL1 share": {
-        "total_unique": 250_000,
+    "25% Lower total volume and bachelor share": {
+        "total_unique": 240_533,
         "cap_regular": 65_000,
         "cap_masters": 20_000,
-        "bachelor_share": 0.55,
-        "wage_b": {1: 0.14, 2: 0.67, 3: 0.13, 4: 0.06},
-        "wage_m": {1: 0.30, 2: 0.56, 3: 0.11, 4: 0.03},
+        "bachelor_share": 0.48,
+        "wage_b": {1: 0.20, 2: 0.61, 3: 0.13, 4: 0.06},
+        "wage_m": {1: 0.36, 2: 0.50, 3: 0.11, 4: 0.03},
         "years": 3,
         "simulations": DEFAULT_SIMULATIONS,
         "seed": DEFAULT_SEED,
