@@ -649,7 +649,7 @@ with calculator_tab:
         out_b, raw_b = scenario_panel("B", "Scenario B", PRESETS, container=col_b)
 
         st.markdown("---")
-        st.subheader("Comparison (Scenario B - Scenario A)")
+        st.subheader("Comparison (Scenario A and B)")
 
         if out_a is None or out_b is None or raw_a is None or raw_b is None:
             st.info("Run both scenarios to view the comparison table.")
