@@ -593,16 +593,16 @@ def compare_two(raw_a, raw_b, years_a, years_b):
     display = merged[key_cols].copy()
     display["Annual A"] = (merged["Annual_A"] * 100).round(2).astype(str) + "%"
     display["Annual B"] = (merged["Annual_B"] * 100).round(2).astype(str) + "%"
-    display["Annual (B - A)"] = merged["Annual_diff_pp"].round(2).astype(str) + " pp"
+    display["Annual (B - A)"] = merged["Annual_diff_pp"].round(2).astype(str) + " %"
     display["2-Year A"] = (merged["2-Year_A"] * 100).round(2).astype(str) + "%"
     display["2-Year B"] = (merged["2-Year_B"] * 100).round(2).astype(str) + "%"
-    display["2-Year (B - A)"] = merged["2-Year_diff_pp"].round(2).astype(str) + " pp"
+    display["2-Year (B - A)"] = merged["2-Year_diff_pp"].round(2).astype(str) + " %"
     if years_a != 2:
         display[f"{years_a}-Year A"] = (merged[f"{years_a}-Year_A"] * 100).round(2).astype(str) + "%"
     if years_b != 2:
         display[f"{years_b}-Year B"] = (merged[f"{years_b}-Year_B"] * 100).round(2).astype(str) + "%"
     if years_a == years_b and years_a != 2:
-        display[f"{years_a}-Year (B - A)"] = merged[f"{years_a}-Year_diff_pp"].round(2).astype(str) + " pp"
+        display[f"{years_a}-Year (B - A)"] = merged[f"{years_a}-Year_diff_pp"].round(2).astype(str) + " %"
     return display
 
 
