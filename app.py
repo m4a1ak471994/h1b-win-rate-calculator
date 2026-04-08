@@ -9,7 +9,7 @@ import streamlit as st
 st.markdown('<meta name="google-site-verification" content="0VV4qLxr-3OPPl7NZXivYIwmoiQgAFGnjJdmVqV36Xo" />', unsafe_allow_html=True)
 
 st.set_page_config(
-    page_title="H-1B Weighted Lottery Win Rate Calculator (2025 Rule)",
+    page_title="H-1B Weighted Lottery Win Rate Calculator (2026 Rule)",
     page_icon="chart_with_upwards_trend",
     layout="wide",
     initial_sidebar_state="expanded",
