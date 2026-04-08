@@ -28,7 +28,7 @@ st.markdown(
     """
 A Streamlit app that estimates H-1B lottery win rates under a 2-round selection process with weighted tickets **by wage level and degree type**.
 
-On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule that introduces **weighted selection** by wage level (WL1-WL4). This app estimates win rates under that system while preserving the existent two-round structure. **The final rule itself does not publish the degree-split or multi-year win-rate calculations**, so this app computes them.
+On Dec. 29, 2025, DHS/USCIS finalized an H-1B rule (effective Feb. 27, 2026) that introduces **weighted selection** by wage level (WL1-WL4). This app estimates win rates under that system while preserving the existent two-round structure. **The final rule itself does not publish the degree-split or multi-year win-rate calculations**, so this app computes them.
 
 Weights are based on **wage levels** (WL1-WL4): **WL1 = 1 ticket, WL2 = 2, WL3 = 3, WL4 = 4**.
 
